@@ -1,0 +1,26 @@
+# Netlify build & deploy configuration for ProductNova CRM
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# Clean alias so the frontend can call "/api/leads-list" instead of the long
+# "/.netlify/functions/leads-list" path. This is purely cosmetic/convenience.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# SPA fallback: any route not matched above (and not a real static asset or a
+# Netlify Identity path) should serve index.html so React Router can handle it.
+# This MUST come after the /api/* redirect above, and Netlify Identity's own
+# /.netlify/identity/* paths are handled internally by Netlify and never hit
+# this catch-all.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[functions]
+  node_bundler = "esbuild"

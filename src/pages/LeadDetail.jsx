@@ -8,7 +8,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api, FUNNEL_STAGES, ACTIVITY_TYPES } from '../api.js';
+import { api, FUNNEL_STAGES, ACTIVITY_TYPES, CALL_OUTCOMES, EMAIL_EVENTS } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import RoleGate from '../components/RoleGate.jsx';
 
@@ -23,7 +23,8 @@ export default function LeadDetail() {
   const [activities, setActivities] = useState([]);
   const [error, setError] = useState('');
   const [editForm, setEditForm] = useState(null);
-  const [newActivity, setNewActivity] = useState({ summary: '', activityType: ACTIVITY_TYPES[0] });
+  const emptyActivity = { summary: '', activityType: ACTIVITY_TYPES[0], callOutcome: '', emailEvent: 'Sent', isFollowUp: false };
+  const [newActivity, setNewActivity] = useState(emptyActivity);
 
   const load = useCallback(() => {
     // leads-list doesn't support fetching a single record by id directly in
@@ -79,7 +80,7 @@ export default function LeadDetail() {
     if (!newActivity.summary) return;
     try {
       await api.createActivity({ ...newActivity, leadId: id });
-      setNewActivity({ summary: '', activityType: ACTIVITY_TYPES[0] });
+      setNewActivity(emptyActivity);
       load();
     } catch (err) {
       setError(err.message);
@@ -168,12 +169,19 @@ export default function LeadDetail() {
       <div className="section-title">Activity Timeline</div>
       <div className="card">
         {activities.length === 0 && <p className="muted">No activities logged yet.</p>}
-        {activities.map((a) => (
-          <div key={a.id} style={{ marginBottom: '0.5rem', borderBottom: '1px solid var(--pn-border)', paddingBottom: '0.5rem' }}>
-            <strong>[{a.fields['Activity Type']}]</strong> {a.fields['Summary']}
-            <div className="muted">{a.fields['Logged By']} - {a.fields['Date']}</div>
-          </div>
-        ))}
+        {activities.map((a) => {
+          const tags = [];
+          if (a.fields['Call Outcome']) tags.push(a.fields['Call Outcome']);
+          if (a.fields['Email Event']) tags.push(a.fields['Email Event']);
+          if (a.fields['Is Follow-Up']) tags.push('Follow-up');
+          return (
+            <div key={a.id} style={{ marginBottom: '0.5rem', borderBottom: '1px solid var(--pn-border)', paddingBottom: '0.5rem' }}>
+              <strong>[{a.fields['Activity Type']}]</strong> {a.fields['Summary']}
+              {tags.map((t) => <span key={t} className="activity-tag">{t}</span>)}
+              <div className="muted">{a.fields['Logged By']} - {a.fields['Date']}</div>
+            </div>
+          );
+        })}
 
         {/* Logging an activity is a create action - allowed for every role. */}
         <form onSubmit={logActivity} style={{ marginTop: '1rem' }}>
@@ -183,6 +191,44 @@ export default function LeadDetail() {
               {ACTIVITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
+
+          {/* Call-specific: outcome (Connected / DNP). */}
+          {newActivity.activityType === 'Call' && (
+            <div className="form-field">
+              <label>Call Outcome</label>
+              <select value={newActivity.callOutcome} onChange={(e) => setNewActivity({ ...newActivity, callOutcome: e.target.value })}>
+                <option value="">-- Not set --</option>
+                {CALL_OUTCOMES.map((o) => <option key={o} value={o}>{o === 'DNP' ? 'DNP (did not pick up)' : o}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Email-specific: which event this row records. */}
+          {newActivity.activityType === 'Email' && (
+            <div className="form-field">
+              <label>Email Event</label>
+              <select value={newActivity.emailEvent} onChange={(e) => setNewActivity({ ...newActivity, emailEvent: e.target.value })}>
+                {EMAIL_EVENTS.map((ev) => <option key={ev} value={ev}>{ev}</option>)}
+              </select>
+              <p className="muted">Log an open or reply as its own entry - the original "Sent" email stays as it was.</p>
+            </div>
+          )}
+
+          {/* Follow-up flag applies to Calls and Emails. */}
+          {(newActivity.activityType === 'Call' || newActivity.activityType === 'Email') && (
+            <div className="form-field">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <input
+                  type="checkbox"
+                  checked={newActivity.isFollowUp}
+                  onChange={(e) => setNewActivity({ ...newActivity, isFollowUp: e.target.checked })}
+                  style={{ width: 'auto' }}
+                />
+                This is a follow-up {newActivity.activityType === 'Call' ? 'call' : 'email'}
+              </label>
+            </div>
+          )}
+
           <div className="form-field">
             <textarea
               rows={2}

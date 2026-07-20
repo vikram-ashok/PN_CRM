@@ -75,6 +75,9 @@ export const api = {
   // Dashboard
   dashboardSummary: () => request('dashboard-summary'),
 
+  // Performance (per-team-member metrics for a date range)
+  performanceSummary: (from, to) => request('performance-summary', { query: { from, to } }),
+
   // Users (Super Admin only)
   listUsers: () => request('users-list'),
   inviteUser: (email, role) => request('users-invite', { method: 'POST', body: { email, role } }),
@@ -107,3 +110,24 @@ export const LEAD_SOURCES = [
 ];
 
 export const ACTIVITY_TYPES = ['Call', 'Email', 'Meeting', 'Note'];
+
+// Call outcomes (only meaningful when Activity Type === 'Call').
+export const CALL_OUTCOMES = ['Connected', 'DNP'];
+
+// Email events (only meaningful when Activity Type === 'Email'). Opens and
+// replies are logged as separate events (Team users can't edit records).
+export const EMAIL_EVENTS = ['Sent', 'Opened', 'Replied'];
+
+// The 10 tracked performance metrics: key + label + optional target key.
+export const PERFORMANCE_METRICS = [
+  { key: 'leadsSourced', label: 'Leads sourced', target: 'leadsSourced' },
+  { key: 'appointments', label: 'Appointments set', target: 'appointments' },
+  { key: 'callsMade', label: 'Calls made' },
+  { key: 'callsConnected', label: 'Calls connected' },
+  { key: 'dnps', label: 'DNPs' },
+  { key: 'followUpCalls', label: 'Follow-up calls' },
+  { key: 'emailsSent', label: 'Emails sent' },
+  { key: 'emailsOpened', label: 'Emails opened' },
+  { key: 'followUpEmails', label: 'Follow-up emails' },
+  { key: 'emailReplies', label: 'Email replies' },
+];

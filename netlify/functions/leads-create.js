@@ -6,7 +6,30 @@
 // "Created Date" itself (never trusts a client-supplied timestamp).
 
 const { requireRole, getUser } = require('./utils/auth');
-const { TABLES, createRecord } = require('./utils/airtable');
+const { TABLES, createRecord, listRecords } = require('./utils/airtable');
+
+// Find an existing Company by name (case-insensitive), or create one and
+// return its record id. Lets reps type a brand-new company in Add Lead
+// without pre-creating it. Returns null if no usable name was given.
+async function resolveCompanyId(companyName) {
+  const name = (companyName || '').trim();
+  if (!name) return null;
+
+  // Companies is a small table - list and match client-side to avoid
+  // filterByFormula quote-escaping pitfalls.
+  let offset;
+  do {
+    const data = await listRecords(TABLES.COMPANIES, { pageSize: 100, offset });
+    const hit = (data.records || []).find(
+      (r) => ((r.fields && r.fields['Company Name']) || '').trim().toLowerCase() === name.toLowerCase()
+    );
+    if (hit) return hit.id;
+    offset = data.offset;
+  } while (offset);
+
+  const created = await createRecord(TABLES.COMPANIES, { 'Company Name': name });
+  return created.id;
+}
 
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') {
@@ -30,7 +53,8 @@ exports.handler = async (event, context) => {
     fullName,
     email,
     phone,
-    companyId, // Airtable record id of a linked Company, optional
+    companyId, // Airtable record id of a linked Company, optional (legacy)
+    companyName, // free-typed company name, optional (find-or-create)
     leadSource,
     sourceCampaignDetail,
     funnelStage,
@@ -40,6 +64,16 @@ exports.handler = async (event, context) => {
 
   if (!fullName) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Full Name is required.' }) };
+  }
+
+  // Prefer an explicit companyId; otherwise resolve/ create from a typed name.
+  let linkedCompanyId = companyId || null;
+  try {
+    if (!linkedCompanyId && companyName) {
+      linkedCompanyId = await resolveCompanyId(companyName);
+    }
+  } catch (err) {
+    return { statusCode: err.statusCode || 500, body: JSON.stringify({ error: `Company lookup failed: ${err.message}` }) };
   }
 
   // Field names below MUST exactly match the live Airtable schema.
@@ -60,8 +94,8 @@ exports.handler = async (event, context) => {
     'Created Date': new Date().toISOString(),
   };
 
-  if (companyId) {
-    fields['Company'] = [companyId];
+  if (linkedCompanyId) {
+    fields['Company'] = [linkedCompanyId];
   }
 
   // Strip undefined keys so we don't send blank overwrites to Airtable.

@@ -16,7 +16,7 @@ const emptyForm = {
   fullName: '',
   email: '',
   phone: '',
-  companyId: '',
+  companyName: '',
   leadSource: LEAD_SOURCES[0],
   sourceCampaignDetail: '',
   funnelStage: FUNNEL_STAGES[0],
@@ -72,12 +72,18 @@ export default function AddLead() {
         </div>
         <div className="form-field">
           <label>Company</label>
-          <select value={form.companyId} onChange={update('companyId')}>
-            <option value="">-- None --</option>
+          <input
+            list="company-options"
+            placeholder="Type a company name (new or existing)"
+            value={form.companyName}
+            onChange={update('companyName')}
+          />
+          <datalist id="company-options">
             {companies.map((c) => (
-              <option key={c.id} value={c.id}>{c.fields['Company Name']}</option>
+              <option key={c.id} value={c.fields['Company Name']} />
             ))}
-          </select>
+          </datalist>
+          <p className="muted">Pick an existing company or type a new one - a new name is created automatically.</p>
         </div>
         <div className="form-field">
           <label>Lead Source</label>

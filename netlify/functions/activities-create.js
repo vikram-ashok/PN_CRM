@@ -25,19 +25,32 @@ exports.handler = async (event, context) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON body' }) };
   }
 
-  const { summary, leadId, activityType, date } = payload;
+  const { summary, leadId, activityType, date, callOutcome, isFollowUp, emailEvent } = payload;
 
   if (!summary) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Summary is required.' }) };
   }
 
+  const type = activityType || 'Note';
+
   const fields = {
     'Summary': summary,
-    'Activity Type': activityType || 'Note',
+    'Activity Type': type,
     'Date': date || new Date().toISOString(),
     'Logged By': (user && user.email) || 'unknown',
   };
   if (leadId) fields['Linked Lead'] = [leadId];
+
+  // Performance-tracking metadata (only meaningful for the relevant type).
+  if (type === 'Call' && (callOutcome === 'Connected' || callOutcome === 'DNP')) {
+    fields['Call Outcome'] = callOutcome;
+  }
+  if (type === 'Email' && ['Sent', 'Opened', 'Replied'].includes(emailEvent)) {
+    fields['Email Event'] = emailEvent;
+  }
+  if ((type === 'Call' || type === 'Email') && isFollowUp) {
+    fields['Is Follow-Up'] = true;
+  }
 
   try {
     const record = await createRecord(TABLES.ACTIVITIES, fields);

@@ -58,6 +58,27 @@ in `netlify/functions/` to match.
 | Activity Type | Single select | Call, Email, Meeting, Note |
 | Date | Date/time | |
 | Logged By | Single line text | stamped from the caller's Identity email server-side |
+| Call Outcome | Single select | Connected, DNP — set only on `Call` activities (drives calls-connected / DNP metrics) |
+| Is Follow-Up | Checkbox | set on `Call` or `Email` activities that are follow-ups (drives follow-up call/email metrics) |
+| Email Event | Single select | Sent, Opened, Replied — set on `Email` activities. Opens/replies are logged as **separate** activity records (not edits), since Team users can't edit records |
+
+### Performance metrics (Team Performance page)
+
+The `/performance` page aggregates per team member (by `Owner` on Leads and
+`Logged By` on Activities) over a selectable day/week/month window:
+
+1. **Leads sourced** — Leads with `Created Date` in range · target = 30 × working days (Mon–Fri)
+2. **Appointments set** — Activities of type `Meeting` · target = monthly 10 pro-rated by working days (~2–3/week)
+3. **Calls made** — Activities of type `Call`
+4. **Calls connected** — `Call` + Call Outcome = Connected
+5. **DNPs** — `Call` + Call Outcome = DNP
+6. **Follow-up calls** — `Call` + Is Follow-Up
+7. **Emails sent** — `Email` + Email Event = Sent (blank event treated as Sent)
+8. **Emails opened** — `Email` + Email Event = Opened
+9. **Follow-up emails** — `Email` (Sent) + Is Follow-Up
+10. **Email replies** — `Email` + Email Event = Replied
+
+Access: Admin/Super Admin see all members; a Team member sees only their own row (enforced server-side).
 
 ## Funnel Stage order (used across the app)
 

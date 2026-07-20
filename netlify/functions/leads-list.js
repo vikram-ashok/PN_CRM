@@ -7,7 +7,7 @@
 // else here - the *lockdown* (no edit/export) is enforced in the frontend
 // UI (hidden controls) AND in leads-update.js / leads-delete.js (403s).
 
-const { requireRole } = require('./utils/auth');
+const { requireRole, getUserRole, getUser } = require('./utils/auth');
 const { TABLES, listRecords } = require('./utils/airtable');
 
 exports.handler = async (event, context) => {
@@ -18,6 +18,10 @@ exports.handler = async (event, context) => {
   const denied = await requireRole(event, context, ['team', 'admin', 'superadmin']);
   if (denied) return denied;
 
+  const role = await getUserRole(event, context);
+  const user = getUser(context);
+  const callerEmail = (user && user.email) || '';
+
   const params = event.queryStringParameters || {};
   const query = {
     pageSize: 100,
@@ -25,10 +29,22 @@ exports.handler = async (event, context) => {
     'sort[0][direction]': 'desc',
   };
 
+  // Build filter conditions. Team members may ONLY see leads they own - this
+  // is enforced here server-side (not just hidden in the UI). Admin/Super
+  // Admin see everything.
+  const conditions = [];
   if (params.stage) {
-    // Escape double quotes defensively before embedding into the formula.
     const safeStage = String(params.stage).replace(/"/g, '\\"');
-    query.filterByFormula = `{Funnel Stage} = "${safeStage}"`;
+    conditions.push(`{Funnel Stage} = "${safeStage}"`);
+  }
+  if (role === 'team') {
+    const safeOwner = String(callerEmail).replace(/"/g, '\\"');
+    conditions.push(`{Owner} = "${safeOwner}"`);
+  }
+  if (conditions.length === 1) {
+    query.filterByFormula = conditions[0];
+  } else if (conditions.length > 1) {
+    query.filterByFormula = `AND(${conditions.join(', ')})`;
   }
 
   try {

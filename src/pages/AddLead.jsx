@@ -25,16 +25,22 @@ const emptyForm = {
 };
 
 export default function AddLead() {
-  const { user } = useAuth();
+  const { user, canEdit } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ ...emptyForm, owner: (user && user.email) || '' });
   const [companies, setCompanies] = useState([]);
+  const [members, setMembers] = useState([]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     api.listCompanies().then((data) => setCompanies(data.records || [])).catch(() => {});
-  }, []);
+    // Owner dropdown source. Team members always own their own leads (the
+    // server enforces this), so they don't need the roster.
+    if (canEdit) {
+      api.listMembers().then((data) => setMembers(data.members || [])).catch(() => {});
+    }
+  }, [canEdit]);
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -101,10 +107,27 @@ export default function AddLead() {
             {FUNNEL_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        <div className="form-field">
-          <label>Owner (email)</label>
-          <input value={form.owner} onChange={update('owner')} />
-        </div>
+        {canEdit ? (
+          <div className="form-field">
+            <label>Lead Owner</label>
+            <select value={form.owner} onChange={update('owner')}>
+              {/* Ensure the current user is always selectable even if the
+                  roster is still loading or empty. */}
+              {!members.some((m) => m.email === (user && user.email)) && user && (
+                <option value={user.email}>{user.email} (you)</option>
+              )}
+              {members.map((m) => (
+                <option key={m.email} value={m.email}>{m.name} ({m.email})</option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="form-field">
+            <label>Lead Owner</label>
+            <input value={(user && user.email) || ''} disabled />
+            <p className="muted">You'll be set as the owner of this lead.</p>
+          </div>
+        )}
         <div className="form-field">
           <label>Notes</label>
           <textarea rows={4} value={form.notes} onChange={update('notes')} />

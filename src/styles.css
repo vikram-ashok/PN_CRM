@@ -319,3 +319,33 @@ table.data-table th { color: var(--pn-text-muted); font-weight: 600; font-size: 
   color: var(--pn-text-muted);
   vertical-align: middle;
 }
+
+/* --- Leads table toolbar + bulk import modal ------------------------------ */
+
+.toolbar-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.search-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--pn-border);
+  border-radius: var(--pn-radius);
+  font-family: inherit;
+  font-size: 0.9rem;
+  min-width: 200px;
+}
+.leads-table td, .leads-table th { text-align: left; }
+.leads-table td.perf-sticky a { font-weight: 600; }
+
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 5vh 1rem; z-index: 1000;
+}
+.modal-card {
+  background: var(--pn-bg);
+  border-radius: var(--pn-radius);
+  box-shadow: var(--pn-shadow);
+  padding: 1.5rem;
+  width: 100%; max-width: 560px;
+  max-height: 90vh; overflow-y: auto;
+}
+.modal-card h2 { margin-top: 0; }

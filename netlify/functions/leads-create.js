@@ -5,31 +5,8 @@
 // is the Team member's primary entry point into the CRM. The server sets
 // "Created Date" itself (never trusts a client-supplied timestamp).
 
-const { requireRole, getUser } = require('./utils/auth');
-const { TABLES, createRecord, listRecords } = require('./utils/airtable');
-
-// Find an existing Company by name (case-insensitive), or create one and
-// return its record id. Lets reps type a brand-new company in Add Lead
-// without pre-creating it. Returns null if no usable name was given.
-async function resolveCompanyId(companyName) {
-  const name = (companyName || '').trim();
-  if (!name) return null;
-
-  // Companies is a small table - list and match client-side to avoid
-  // filterByFormula quote-escaping pitfalls.
-  let offset;
-  do {
-    const data = await listRecords(TABLES.COMPANIES, { pageSize: 100, offset });
-    const hit = (data.records || []).find(
-      (r) => ((r.fields && r.fields['Company Name']) || '').trim().toLowerCase() === name.toLowerCase()
-    );
-    if (hit) return hit.id;
-    offset = data.offset;
-  } while (offset);
-
-  const created = await createRecord(TABLES.COMPANIES, { 'Company Name': name });
-  return created.id;
-}
+const { requireRole, getUser, getUserRole } = require('./utils/auth');
+const { TABLES, createRecord, findOrCreateCompany } = require('./utils/airtable');
 
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') {
@@ -41,6 +18,7 @@ exports.handler = async (event, context) => {
   if (denied) return denied;
 
   const user = getUser(context);
+  const role = await getUserRole(event, context);
 
   let payload;
   try {
@@ -70,11 +48,16 @@ exports.handler = async (event, context) => {
   let linkedCompanyId = companyId || null;
   try {
     if (!linkedCompanyId && companyName) {
-      linkedCompanyId = await resolveCompanyId(companyName);
+      linkedCompanyId = await findOrCreateCompany(companyName);
     }
   } catch (err) {
     return { statusCode: err.statusCode || 500, body: JSON.stringify({ error: `Company lookup failed: ${err.message}` }) };
   }
+
+  // Owner rules: a Team member always owns the leads they create (they can
+  // only ever see their own). Admin/Super Admin may assign any owner.
+  const callerEmail = (user && user.email) || undefined;
+  const ownerEmail = role === 'team' ? callerEmail : (owner || callerEmail);
 
   // Field names below MUST exactly match the live Airtable schema.
   const fields = {
@@ -87,9 +70,7 @@ exports.handler = async (event, context) => {
     // created, changing the stage requires an Admin/Super Admin (enforced
     // in leads-update.js).
     'Funnel Stage': funnelStage || 'New Lead',
-    // Owner defaults to whoever is logging the lead, but can be overridden
-    // if the payload specifies one (e.g. an admin creating on someone's behalf).
-    'Owner': owner || (user && user.email) || undefined,
+    'Owner': ownerEmail,
     'Notes': notes || undefined,
     'Created Date': new Date().toISOString(),
   };

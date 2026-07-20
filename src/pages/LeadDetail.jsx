@@ -19,6 +19,7 @@ export default function LeadDetail() {
 
   const [lead, setLead] = useState(null);
   const [companies, setCompanies] = useState([]);
+  const [members, setMembers] = useState([]);
   const [deals, setDeals] = useState([]);
   const [activities, setActivities] = useState([]);
   const [error, setError] = useState('');
@@ -50,7 +51,10 @@ export default function LeadDetail() {
     api.listDeals(id).then((data) => setDeals(data.records || [])).catch(() => {});
     api.listActivities(id).then((data) => setActivities(data.records || [])).catch(() => {});
     api.listCompanies().then((data) => setCompanies(data.records || [])).catch(() => {});
-  }, [id]);
+    if (canEdit) {
+      api.listMembers().then((data) => setMembers(data.members || [])).catch(() => {});
+    }
+  }, [id, canEdit]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -136,8 +140,16 @@ export default function LeadDetail() {
             <p className="muted">Setting this to "Nurture" only tags the record - the CRM sends no emails; an external automation handles Nurture drips outside this app.</p>
           </div>
           <div className="form-field">
-            <label>Owner (reassign)</label>
-            <input value={editForm.owner} onChange={(e) => setEditForm({ ...editForm, owner: e.target.value })} />
+            <label>Lead Owner (reassign)</label>
+            <select value={editForm.owner} onChange={(e) => setEditForm({ ...editForm, owner: e.target.value })}>
+              {/* Keep the current owner selectable even if not in the roster. */}
+              {editForm.owner && !members.some((m) => m.email === editForm.owner) && (
+                <option value={editForm.owner}>{editForm.owner}</option>
+              )}
+              {members.map((m) => (
+                <option key={m.email} value={m.email}>{m.name} ({m.email})</option>
+              ))}
+            </select>
           </div>
           <div className="form-field">
             <label>Lost Reason</label>

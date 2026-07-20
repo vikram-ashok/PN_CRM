@@ -63,6 +63,12 @@ export const api = {
   // Companies
   listCompanies: () => request('companies-list'),
 
+  // Team members (email/name/role) - all roles; for owner pickers & name display
+  listMembers: () => request('members-list'),
+
+  // Bulk import leads from parsed CSV rows
+  importLeads: (rows) => request('leads-import', { method: 'POST', body: { rows } }),
+
   // Deals
   listDeals: (leadId) => request('deals-list', { query: { leadId } }),
   createDeal: (payload) => request('deals-create', { method: 'POST', body: payload }),

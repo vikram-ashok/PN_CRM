@@ -85,6 +85,45 @@ async function listRecords(tableId, query) {
   return airtableRequest(tableId, { method: 'GET', query });
 }
 
+// Fetch every record in a table, paging through Airtable's 100-record pages.
+async function listAllRecords(tableId, query = {}) {
+  const out = [];
+  let offset;
+  do {
+    const data = await airtableRequest(tableId, { method: 'GET', query: { pageSize: 100, ...query, offset } });
+    (data.records || []).forEach((r) => out.push(r));
+    offset = data.offset;
+  } while (offset);
+  return out;
+}
+
+// Build a lowercased-name -> recordId map of all Companies (one API sweep).
+async function loadCompanyMap() {
+  const map = new Map();
+  const records = await listAllRecords(TABLES.COMPANIES);
+  records.forEach((r) => {
+    const name = ((r.fields && r.fields['Company Name']) || '').trim();
+    if (name) map.set(name.toLowerCase(), r.id);
+  });
+  return map;
+}
+
+// Resolve a company name to a record id, creating it if new. Pass an optional
+// cache Map (from loadCompanyMap) to avoid re-listing on bulk operations; the
+// cache is updated in place when a new company is created.
+async function findOrCreateCompany(companyName, cache) {
+  const name = (companyName || '').trim();
+  if (!name) return null;
+  const key = name.toLowerCase();
+
+  const map = cache || (await loadCompanyMap());
+  if (map.has(key)) return map.get(key);
+
+  const created = await createRecord(TABLES.COMPANIES, { 'Company Name': name });
+  map.set(key, created.id);
+  return created.id;
+}
+
 async function getRecord(tableId, recordId) {
   return airtableRequest(tableId, { method: 'GET', path: `/${recordId}` });
 }
@@ -109,6 +148,9 @@ async function deleteRecord(tableId, recordId) {
 module.exports = {
   TABLES,
   listRecords,
+  listAllRecords,
+  loadCompanyMap,
+  findOrCreateCompany,
   getRecord,
   createRecord,
   updateRecord,

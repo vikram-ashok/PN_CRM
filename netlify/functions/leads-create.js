@@ -14,7 +14,7 @@ exports.handler = async (event, context) => {
   }
 
   // Any of the three roles may create a lead - reject only unauthenticated.
-  const denied = requireRole(context, ['team', 'admin', 'superadmin']);
+  const denied = await requireRole(event, context, ['team', 'admin', 'superadmin']);
   if (denied) return denied;
 
   const user = getUser(context);

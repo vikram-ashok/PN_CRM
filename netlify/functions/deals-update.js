@@ -12,7 +12,7 @@ exports.handler = async (event, context) => {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  const denied = requireRole(context, ['admin', 'superadmin']);
+  const denied = await requireRole(event, context, ['admin', 'superadmin']);
   if (denied) return denied;
 
   let payload;

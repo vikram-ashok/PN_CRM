@@ -17,7 +17,7 @@ exports.handler = async (event, context) => {
 
   // Reject "team" (and any unauthenticated caller) with 403/401. Only
   // admin/superadmin may reach the Airtable update call below.
-  const denied = requireRole(context, ['admin', 'superadmin']);
+  const denied = await requireRole(event, context, ['admin', 'superadmin']);
   if (denied) return denied;
 
   let payload;

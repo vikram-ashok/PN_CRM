@@ -17,7 +17,12 @@ async function authHeader() {
 }
 
 async function request(path, { method = 'GET', body, query } = {}) {
-  let url = `/api/${path}`;
+  // Call functions at their NATIVE path, not via the /api/* rewrite.
+  // Netlify only decodes+verifies the Identity JWT into
+  // context.clientContext.user when the function is hit at
+  // /.netlify/functions/*; a rewrite forwards the Authorization header but
+  // skips that injection, leaving clientContext.user null (=> 401).
+  let url = `/.netlify/functions/${path}`;
   if (query) {
     const params = new URLSearchParams(
       Object.entries(query).filter(([, v]) => v !== undefined && v !== null && v !== '')

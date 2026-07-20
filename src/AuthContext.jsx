@@ -28,8 +28,6 @@ export function AuthProvider({ children }) {
   const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    netlifyIdentity.init(); // picks up an existing session if present
-
     const onLogin = (u) => {
       setUser(u);
       netlifyIdentity.close();
@@ -40,9 +38,18 @@ export function AuthProvider({ children }) {
       setInitializing(false);
     };
 
+    // IMPORTANT: event listeners must be registered BEFORE calling init().
+    // netlify-identity-widget's init() reads the session from localStorage
+    // and fires the 'init' event synchronously - if `.on('init', ...)` is
+    // registered after `.init()` is called, the event has already fired and
+    // is missed forever, leaving the app stuck on the loading screen with no
+    // error (this was a real bug we hit: no console errors, no pending
+    // network requests, just a permanently "initializing" state).
     netlifyIdentity.on('login', onLogin);
     netlifyIdentity.on('logout', onLogout);
     netlifyIdentity.on('init', onInit);
+
+    netlifyIdentity.init(); // picks up an existing session if present
 
     return () => {
       netlifyIdentity.off('login', onLogin);

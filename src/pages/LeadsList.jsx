@@ -1,7 +1,8 @@
 // src/pages/LeadsList.jsx
 //
 // Leads table view (columns: Lead Name, Company, Email, Phone, Lead Source,
-// Lead Owner) with client-side search, Create Lead, and Bulk Import.
+// Funnel Stage, Lead Owner, Date Added) with client-side search, Create Lead,
+// and Bulk Import. "Date Added" shows the Created Date + the lead's age.
 //
 // Role behaviour:
 //  - Team: the API (leads-list.js) already returns ONLY leads they own, so
@@ -110,6 +111,31 @@ function exportToCsv(leads, companyName, ownerName) {
     .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     .join('\n');
   downloadCsv(`productnova-leads-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+}
+
+// --- Date / age helper ------------------------------------------------------
+
+// Format a lead's Created Date as a readable date+time plus its age, so the
+// team can see how old each lead is at a glance (e.g. "22 Jul 2026, 3:04 PM"
+// with a "2d old" sub-line). Returns null-ish parts when no date is stored.
+function formatDateAdded(iso) {
+  if (!iso) return { when: '-', age: '' };
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { when: '-', age: '' };
+
+  const when = d.toLocaleString(undefined, {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+
+  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+  let age;
+  if (mins < 1) age = 'just now';
+  else if (mins < 60) age = `${mins}m old`;
+  else if (mins < 1440) age = `${Math.floor(mins / 60)}h old`;
+  else age = `${Math.floor(mins / 1440)}d old`;
+
+  return { when, age };
 }
 
 // --- Bulk import modal ------------------------------------------------------
@@ -300,6 +326,7 @@ export default function LeadsList() {
                 <th>Lead Source</th>
                 <th>Funnel Stage</th>
                 <th>Lead Owner</th>
+                <th>Date Added</th>
                 <RoleGate allow={['admin', 'superadmin']}><th></th></RoleGate>
               </tr>
             </thead>
@@ -313,6 +340,17 @@ export default function LeadsList() {
                   <td>{lead.fields['Lead Source'] || '-'}</td>
                   <td>{lead.fields['Funnel Stage'] || '-'}</td>
                   <td>{ownerName(lead.fields['Owner']) || 'Unassigned'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {(() => {
+                      const { when, age } = formatDateAdded(lead.fields['Created Date']);
+                      return (
+                        <>
+                          {when}
+                          {age && <div className="muted" style={{ fontSize: '0.75rem' }}>{age}</div>}
+                        </>
+                      );
+                    })()}
+                  </td>
                   <RoleGate allow={['admin', 'superadmin']}>
                     <td>
                       <button className="danger" onClick={() => handleDelete(lead.id)} style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
@@ -323,7 +361,7 @@ export default function LeadsList() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: '1.5rem' }}>
+                <tr><td colSpan={9} className="muted" style={{ textAlign: 'center', padding: '1.5rem' }}>
                   {search ? 'No leads match your search.' : 'No leads yet.'}
                 </td></tr>
               )}
@@ -334,7 +372,7 @@ export default function LeadsList() {
 
       {!canEdit && (
         <p className="muted" style={{ marginTop: '1rem' }}>
-          You see only the leads you own. You can create and import leads, but cannot edit, delete, or export existing records.
+          You see only the leads you own. You can create and import leads and update a lead's stage, contact details, and notes (open a lead to edit), but cannot delete or export records.
         </p>
       )}
 

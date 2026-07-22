@@ -1,10 +1,15 @@
 // src/pages/LeadDetail.jsx
 //
 // Lead detail view: shows the lead plus its linked Company, Deals, and
-// Activities. Editable only for Admin/Super Admin (edit form + delete +
-// reassign owner + change stage). Team sees a read-only detail page (still
-// can log Activities - that's a create action, allowed for everyone - and
-// the "log activity" mini-form is shown to all roles).
+// Activities.
+//   - Admin / Super Admin: full edit form (all fields + delete + reassign
+//     owner + change stage).
+//   - Team: a LIMITED edit form on the leads they own - they may move the
+//     lead through the funnel (Funnel Stage) and keep Email / Phone / Notes
+//     current, but cannot rename it, change its source, or reassign the
+//     owner. (leads-list only ever returns a Team member their own leads, and
+//     leads-update.js re-checks ownership + the field whitelist server-side.)
+//   - Everyone can log Activities (a create action).
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -15,7 +20,7 @@ import RoleGate from '../components/RoleGate.jsx';
 export default function LeadDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { canEdit } = useAuth();
+  const { canEdit, isTeam } = useAuth();
 
   const [lead, setLead] = useState(null);
   const [companies, setCompanies] = useState([]);
@@ -61,8 +66,18 @@ export default function LeadDetail() {
   const saveEdit = async (e) => {
     e.preventDefault();
     setError('');
+    // Team members may only change a subset of fields; send exactly those so
+    // the server's field whitelist never trips on an unchanged locked field.
+    const payload = isTeam
+      ? {
+          funnelStage: editForm.funnelStage,
+          notes: editForm.notes,
+          email: editForm.email,
+          phone: editForm.phone,
+        }
+      : editForm;
     try {
-      await api.updateLead(id, editForm);
+      await api.updateLead(id, payload);
       load();
     } catch (err) {
       setError(err.message);
@@ -108,15 +123,37 @@ export default function LeadDetail() {
 
       <div className="section-title">Lead Details</div>
       {!canEdit ? (
-        // ---- READ-ONLY VIEW (Team) ----
-        <div className="card">
-          <p><strong>Email:</strong> {lead.fields['Email'] || '-'}</p>
-          <p><strong>Phone:</strong> {lead.fields['Phone'] || '-'}</p>
-          <p><strong>Company:</strong> {companyName || '-'}</p>
-          <p><strong>Lead Source:</strong> {lead.fields['Lead Source'] || '-'}</p>
-          <p><strong>Owner:</strong> {lead.fields['Owner'] || '-'}</p>
-          <p><strong>Notes:</strong> {lead.fields['Notes'] || '-'}</p>
-        </div>
+        // ---- LIMITED EDIT FORM (Team, own leads only) ----
+        // Team may progress the lead through the funnel and keep contact
+        // details / notes current. Company, Lead Source and Owner are shown
+        // read-only - the server also blocks any attempt to change them.
+        <form onSubmit={saveEdit} className="card" style={{ maxWidth: 560 }}>
+          <div className="form-field">
+            <label>Funnel Stage</label>
+            <select value={editForm.funnelStage} onChange={(e) => setEditForm({ ...editForm, funnelStage: e.target.value })}>
+              {FUNNEL_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <p className="muted">Move the lead as it progresses. "Nurture" only tags the record - the CRM sends no emails.</p>
+          </div>
+          <div className="form-field">
+            <label>Email</label>
+            <input value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+          </div>
+          <div className="form-field">
+            <label>Phone</label>
+            <input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+          </div>
+          <div className="form-field">
+            <label>Notes</label>
+            <textarea rows={4} value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
+          </div>
+          <div className="card" style={{ background: 'var(--pn-bg, #f7f7f8)', marginBottom: '1rem' }}>
+            <p><strong>Company:</strong> {companyName || '-'}</p>
+            <p><strong>Lead Source:</strong> {lead.fields['Lead Source'] || '-'}</p>
+            <p style={{ margin: 0 }}><strong>Owner:</strong> {lead.fields['Owner'] || '-'}</p>
+          </div>
+          <button type="submit">Save Changes</button>
+        </form>
       ) : (
         // ---- EDIT FORM (Admin / Super Admin only) ----
         <form onSubmit={saveEdit} className="card" style={{ maxWidth: 560 }}>

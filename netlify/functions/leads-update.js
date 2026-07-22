@@ -1,24 +1,38 @@
 // netlify/functions/leads-update.js
 //
 // PATCH /api/leads-update
-// CORE RULE ENFORCEMENT: Team members can create leads but can NEVER edit
-// them once created - not the fields, and not the Funnel Stage (moving a
-// lead between stages, including into/out of Nurture, counts as an edit).
-// This check happens here, server-side, against the verified Identity JWT
-// role claim - it does NOT trust any role field in the request body.
+//
+// PERMISSION MODEL (updated 22 Jul 2026):
+//   - Admin / Super Admin: may edit ANY field on ANY lead.
+//   - Team: may edit a LIMITED set of fields (Funnel Stage, Notes, Email,
+//     Phone) but ONLY on leads they OWN. This lets a rep move their own
+//     lead through the funnel and keep contact details / notes current,
+//     without being able to rename a lead, reassign its owner, change its
+//     source, or touch anyone else's records.
+//
+// Enforcement is server-side against the verified Identity JWT role claim and
+// the record's real Owner in Airtable - it never trusts a role, owner, or
+// field list supplied in the request body.
 
-const { requireRole } = require('./utils/auth');
-const { TABLES, updateRecord } = require('./utils/airtable');
+const { requireRole, getUserRole, getUser } = require('./utils/auth');
+const { TABLES, getRecord, updateRecord } = require('./utils/airtable');
+
+// Fields a Team member is allowed to change on a lead they own.
+const TEAM_EDITABLE_KEYS = ['funnelStage', 'notes', 'email', 'phone'];
 
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'PATCH' && event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  // Reject "team" (and any unauthenticated caller) with 403/401. Only
-  // admin/superadmin may reach the Airtable update call below.
-  const denied = await requireRole(event, context, ['admin', 'superadmin']);
+  // Authenticated callers of any role may reach this point; per-role limits
+  // (which fields, which records) are applied below.
+  const denied = await requireRole(event, context, ['team', 'admin', 'superadmin']);
   if (denied) return denied;
+
+  const role = await getUserRole(event, context);
+  const user = getUser(context);
+  const callerEmail = (user && user.email) || '';
 
   let payload;
   try {
@@ -30,6 +44,39 @@ exports.handler = async (event, context) => {
   const { recordId, ...updates } = payload;
   if (!recordId) {
     return { statusCode: 400, body: JSON.stringify({ error: 'recordId is required.' }) };
+  }
+
+  // ---- Team-specific guards: ownership + field whitelist -------------------
+  if (role === 'team') {
+    // 1) The lead must exist and be owned by the caller.
+    let existing;
+    try {
+      existing = await getRecord(TABLES.LEADS, recordId);
+    } catch (err) {
+      if (err.statusCode === 404) {
+        return { statusCode: 404, body: JSON.stringify({ error: 'Lead not found.' }) };
+      }
+      return { statusCode: err.statusCode || 500, body: JSON.stringify({ error: err.message }) };
+    }
+    const ownerEmail = (existing.fields && existing.fields['Owner']) || '';
+    if (ownerEmail.toLowerCase() !== callerEmail.toLowerCase()) {
+      return {
+        statusCode: 403,
+        body: JSON.stringify({ error: 'Forbidden: you can only edit leads you own.' }),
+      };
+    }
+
+    // 2) Reject any field a Team member is not allowed to change - fail loudly
+    //    rather than silently dropping it, so the client isn't misled.
+    const disallowed = Object.keys(updates).filter((k) => !TEAM_EDITABLE_KEYS.includes(k));
+    if (disallowed.length > 0) {
+      return {
+        statusCode: 403,
+        body: JSON.stringify({
+          error: `Forbidden: your role may only change ${TEAM_EDITABLE_KEYS.join(', ')}. Blocked: ${disallowed.join(', ')}.`,
+        }),
+      };
+    }
   }
 
   // Map friendly payload keys to exact Airtable field names.

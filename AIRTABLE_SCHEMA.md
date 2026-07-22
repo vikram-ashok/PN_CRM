@@ -35,6 +35,8 @@ in `netlify/functions/` to match.
 | Created Date | Date/time | set by the app (leads-create.js) on record creation |
 | Last Activity Date | Date/time | |
 | Lost Reason | Single line text | |
+| Next Contact Date | Date (YYYY-MM-DD) | next day the owner should contact this lead (e.g. a requested callback); drives the Today queue |
+| Next Contact Note | Long text | short note on the next contact, e.g. "call back re pricing" |
 | Deals | Link to Deals | auto-populated from Deals.Linked Lead |
 | Activities | Link to Activities | auto-populated from Activities.Linked Lead |
 
@@ -59,6 +61,7 @@ in `netlify/functions/` to match.
 | Date | Date/time | |
 | Logged By | Single line text | stamped from the caller's Identity email server-side |
 | Call Outcome | Single select | Connected, DNP — set only on `Call` activities (drives calls-connected / DNP metrics) |
+| DNP Attempt | Number (1–5) | on a `Call` with Outcome = DNP: which unanswered attempt this was. Auto-suggested (count of prior DNP calls since last Connected + 1, capped 5); rep can override; no waiting period enforced |
 | Is Follow-Up | Checkbox | set on `Call` or `Email` activities that are follow-ups (drives follow-up call/email metrics) |
 | Email Event | Single select | Sent, Opened, Replied — set on `Email` activities. Opens/replies are logged as **separate** activity records (not edits), since Team users can't edit records |
 

@@ -29,8 +29,23 @@ export default function LeadDetail() {
   const [activities, setActivities] = useState([]);
   const [error, setError] = useState('');
   const [editForm, setEditForm] = useState(null);
-  const emptyActivity = { summary: '', activityType: ACTIVITY_TYPES[0], callOutcome: '', emailEvent: 'Sent', isFollowUp: false };
+  const emptyActivity = { summary: '', activityType: ACTIVITY_TYPES[0], callOutcome: '', emailEvent: 'Sent', isFollowUp: false, dnpAttempt: '' };
   const [newActivity, setNewActivity] = useState(emptyActivity);
+
+  // Suggested next DNP attempt for this lead: count unanswered calls since the
+  // last "Connected" (chronological), +1, capped at 5. No date enforcement.
+  const suggestedDnp = (() => {
+    const calls = activities
+      .filter((a) => a.fields['Activity Type'] === 'Call')
+      .sort((a, b) => new Date(a.fields['Date'] || 0) - new Date(b.fields['Date'] || 0));
+    let n = 0;
+    calls.forEach((c) => {
+      const o = c.fields['Call Outcome'];
+      if (o === 'Connected') n = 0;
+      else if (o === 'DNP') n = Math.min(n + 1, 5);
+    });
+    return Math.min(n + 1, 5);
+  })();
 
   const load = useCallback(() => {
     // leads-list doesn't support fetching a single record by id directly in
@@ -49,6 +64,8 @@ export default function LeadDetail() {
           owner: found.fields['Owner'] || '',
           notes: found.fields['Notes'] || '',
           lostReason: found.fields['Lost Reason'] || '',
+          nextContactDate: found.fields['Next Contact Date'] || '',
+          nextContactNote: found.fields['Next Contact Note'] || '',
         });
       }
     }).catch((err) => setError(err.message));
@@ -74,6 +91,8 @@ export default function LeadDetail() {
           notes: editForm.notes,
           email: editForm.email,
           phone: editForm.phone,
+          nextContactDate: editForm.nextContactDate,
+          nextContactNote: editForm.nextContactNote,
         }
       : editForm;
     try {
@@ -97,8 +116,14 @@ export default function LeadDetail() {
   const logActivity = async (e) => {
     e.preventDefault();
     if (!newActivity.summary) return;
+    // For an unanswered call, default the attempt to the suggested next level
+    // if the rep didn't pick one explicitly.
+    const dnpAttempt =
+      newActivity.activityType === 'Call' && newActivity.callOutcome === 'DNP'
+        ? Number(newActivity.dnpAttempt) || suggestedDnp
+        : undefined;
     try {
-      await api.createActivity({ ...newActivity, leadId: id });
+      await api.createActivity({ ...newActivity, dnpAttempt, leadId: id });
       setNewActivity(emptyActivity);
       load();
     } catch (err) {
@@ -120,6 +145,11 @@ export default function LeadDetail() {
     <div className="page-container">
       <h1>{lead.fields['Full Name']}</h1>
       <span className="badge-stage">{lead.fields['Funnel Stage']}</span>
+      {lead.fields['Next Contact Date'] && (
+        <span className="badge-nextcontact" style={{ marginLeft: '0.5rem' }}>
+          Next contact: {lead.fields['Next Contact Date']}
+        </span>
+      )}
 
       <div className="section-title">Lead Details</div>
       {!canEdit ? (
@@ -146,6 +176,15 @@ export default function LeadDetail() {
           <div className="form-field">
             <label>Notes</label>
             <textarea rows={4} value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
+          </div>
+          <div className="form-field">
+            <label>Next contact date</label>
+            <input type="date" value={editForm.nextContactDate} onChange={(e) => setEditForm({ ...editForm, nextContactDate: e.target.value })} />
+            <p className="muted">Set this when the lead asks you to call/contact them on a certain day - it shows up in "Today" when due.</p>
+          </div>
+          <div className="form-field">
+            <label>Next contact note</label>
+            <input value={editForm.nextContactNote} placeholder="e.g. asked to call back re pricing" onChange={(e) => setEditForm({ ...editForm, nextContactNote: e.target.value })} />
           </div>
           <div className="card" style={{ background: 'var(--pn-bg, #f7f7f8)', marginBottom: '1rem' }}>
             <p><strong>Company:</strong> {companyName || '-'}</p>
@@ -196,6 +235,15 @@ export default function LeadDetail() {
             <label>Notes</label>
             <textarea rows={4} value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
           </div>
+          <div className="form-field">
+            <label>Next contact date</label>
+            <input type="date" value={editForm.nextContactDate} onChange={(e) => setEditForm({ ...editForm, nextContactDate: e.target.value })} />
+            <p className="muted">Shows in "Today" when due (e.g. a requested callback).</p>
+          </div>
+          <div className="form-field">
+            <label>Next contact note</label>
+            <input value={editForm.nextContactNote} placeholder="e.g. asked to call back re pricing" onChange={(e) => setEditForm({ ...editForm, nextContactNote: e.target.value })} />
+          </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button type="submit">Save Changes</button>
             <RoleGate allow={['admin', 'superadmin']}>
@@ -220,7 +268,10 @@ export default function LeadDetail() {
         {activities.length === 0 && <p className="muted">No activities logged yet.</p>}
         {activities.map((a) => {
           const tags = [];
-          if (a.fields['Call Outcome']) tags.push(a.fields['Call Outcome']);
+          if (a.fields['Call Outcome']) {
+            const co = a.fields['Call Outcome'];
+            tags.push(co === 'DNP' && a.fields['DNP Attempt'] ? `DNP ${a.fields['DNP Attempt']}` : co);
+          }
           if (a.fields['Email Event']) tags.push(a.fields['Email Event']);
           if (a.fields['Is Follow-Up']) tags.push('Follow-up');
           return (
@@ -249,6 +300,20 @@ export default function LeadDetail() {
                 <option value="">-- Not set --</option>
                 {CALL_OUTCOMES.map((o) => <option key={o} value={o}>{o === 'DNP' ? 'DNP (did not pick up)' : o}</option>)}
               </select>
+            </div>
+          )}
+
+          {/* DNP attempt (1-5): pre-filled with the suggested next level. */}
+          {newActivity.activityType === 'Call' && newActivity.callOutcome === 'DNP' && (
+            <div className="form-field">
+              <label>DNP attempt</label>
+              <select
+                value={newActivity.dnpAttempt || suggestedDnp}
+                onChange={(e) => setNewActivity({ ...newActivity, dnpAttempt: e.target.value })}
+              >
+                {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>DNP {n}</option>)}
+              </select>
+              <p className="muted">Suggested from earlier unanswered calls (resets after a Connected call). You can override it - no waiting period is enforced.</p>
             </div>
           )}
 

@@ -115,7 +115,7 @@ export const LEAD_SOURCES = [
   'Other',
 ];
 
-export const ACTIVITY_TYPES = ['Call', 'Email', 'Meeting', 'Note'];
+export const ACTIVITY_TYPES = ['Call', 'Email', 'Meeting', 'Note', 'LinkedIn'];
 
 // Call outcomes (only meaningful when Activity Type === 'Call').
 export const CALL_OUTCOMES = ['Connected', 'DNP'];
@@ -123,6 +123,10 @@ export const CALL_OUTCOMES = ['Connected', 'DNP'];
 // Email events (only meaningful when Activity Type === 'Email'). Opens and
 // replies are logged as separate events (Team users can't edit records).
 export const EMAIL_EVENTS = ['Sent', 'Opened', 'Replied'];
+
+// LinkedIn outreach steps (only meaningful when Activity Type === 'LinkedIn').
+// Like email, each step is logged as its own entry (create-only model).
+export const LINKEDIN_EVENTS = ['Request Sent', 'Accepted', 'Message Sent', 'Read', 'Replied'];
 
 // The 10 tracked performance metrics: key + label + optional target key.
 export const PERFORMANCE_METRICS = [

@@ -128,8 +128,14 @@ async function getRecord(tableId, recordId) {
   return airtableRequest(tableId, { method: 'GET', path: `/${recordId}` });
 }
 
-async function createRecord(tableId, fields) {
-  return airtableRequest(tableId, { method: 'POST', body: { fields } });
+async function createRecord(tableId, fields, { typecast = false } = {}) {
+  // typecast:true lets Airtable auto-create a missing single-select option
+  // from a string value (used so a new "LinkedIn" Activity Type registers on
+  // first use without a manual schema edit). Safe here because the app only
+  // ever sends values from its own fixed constants.
+  const body = { fields };
+  if (typecast) body.typecast = true;
+  return airtableRequest(tableId, { method: 'POST', body });
 }
 
 async function updateRecord(tableId, recordId, fields) {

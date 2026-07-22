@@ -37,6 +37,7 @@ in `netlify/functions/` to match.
 | Lost Reason | Single line text | |
 | Next Contact Date | Date (YYYY-MM-DD) | next day the owner should contact this lead (e.g. a requested callback); drives the Today queue |
 | Next Contact Note | Long text | short note on the next contact, e.g. "call back re pricing" |
+| LinkedIn URL | URL | the lead's LinkedIn profile, for outreach tracking |
 | Deals | Link to Deals | auto-populated from Deals.Linked Lead |
 | Activities | Link to Activities | auto-populated from Activities.Linked Lead |
 
@@ -57,13 +58,15 @@ in `netlify/functions/` to match.
 |---|---|---|
 | Summary | Long text (primary) | |
 | Linked Lead | Link to Leads | |
-| Activity Type | Single select | Call, Email, Meeting, Note |
+| Activity Type | Single select | Call, Email, Meeting, Note, **LinkedIn**. The "LinkedIn" option is registered on first use via `typecast:true` in `activities-create.js` (the Airtable MCP couldn't edit the existing select's choices). |
 | Date | Date/time | |
 | Logged By | Single line text | stamped from the caller's Identity email server-side |
 | Call Outcome | Single select | Connected, DNP — set only on `Call` activities (drives calls-connected / DNP metrics) |
 | DNP Attempt | Number (1–5) | on a `Call` with Outcome = DNP: which unanswered attempt this was. Auto-suggested (count of prior DNP calls since last Connected + 1, capped 5); rep can override; no waiting period enforced |
 | Is Follow-Up | Checkbox | set on `Call` or `Email` activities that are follow-ups (drives follow-up call/email metrics) |
 | Email Event | Single select | Sent, Opened, Replied — set on `Email` activities. Opens/replies are logged as **separate** activity records (not edits), since Team users can't edit records |
+| LinkedIn Event | Single select | Request Sent, Accepted, Message Sent, Read, Replied — set on `LinkedIn` activities. Each step is its own entry (create-only), same pattern as Email |
+| Message Content | Long text | body of the Email/LinkedIn message that was sent, or the reply text on a "Replied" entry |
 
 ### Performance metrics (Team Performance page)
 

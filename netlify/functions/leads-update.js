@@ -19,7 +19,7 @@ const { TABLES, getRecord, updateRecord } = require('./utils/airtable');
 
 // Fields a Team member is allowed to change on a lead they own. Includes the
 // next-contact date/note so a rep can schedule their own callbacks.
-const TEAM_EDITABLE_KEYS = ['funnelStage', 'notes', 'email', 'phone', 'nextContactDate', 'nextContactNote'];
+const TEAM_EDITABLE_KEYS = ['funnelStage', 'notes', 'email', 'phone', 'nextContactDate', 'nextContactNote', 'linkedinUrl'];
 
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'PATCH' && event.httpMethod !== 'POST') {
@@ -94,6 +94,7 @@ exports.handler = async (event, context) => {
     lostReason: 'Lost Reason',
     nextContactDate: 'Next Contact Date',
     nextContactNote: 'Next Contact Note',
+    linkedinUrl: 'LinkedIn URL',
     companyId: 'Company',
   };
 

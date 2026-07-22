@@ -349,3 +349,49 @@ table.data-table th { color: var(--pn-text-muted); font-weight: 600; font-size: 
   max-height: 90vh; overflow-y: auto;
 }
 .modal-card h2 { margin-top: 0; }
+
+/* --- Team scoreboard (paced progress) ------------------------------------ */
+.score-legend {
+  display: flex; flex-wrap: wrap; gap: 1rem;
+  font-size: 0.8rem; color: var(--pn-text-muted); margin-bottom: 1rem;
+}
+.score-legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+.score-legend .dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.score-legend .tick { width: 2px; height: 12px; background: var(--pn-text); display: inline-block; }
+
+.score-board { display: grid; gap: 0.75rem; margin-bottom: 1.5rem; }
+.score-card {
+  border: 1px solid var(--pn-border);
+  border-radius: var(--pn-radius);
+  background: var(--pn-bg);
+  padding: 0.9rem 1.1rem;
+}
+.score-name { font-weight: 600; margin-bottom: 0.75rem; }
+.score-metrics {
+  display: grid; gap: 1rem 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+.score-metric-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 0.8rem; margin-bottom: 0.35rem;
+}
+.score-metric-label { color: var(--pn-text-muted); }
+.score-metric-val { font-weight: 600; }
+.score-bar-track {
+  position: relative; height: 8px;
+  background: var(--pn-bg-alt);
+  border: 1px solid var(--pn-border);
+  border-radius: 999px;
+}
+.score-bar-fill {
+  position: absolute; left: 0; top: 0; height: 100%;
+  border-radius: 999px; max-width: 100%;
+}
+.score-bar-tick {
+  position: absolute; top: -3px; width: 2px; height: 14px;
+  background: var(--pn-text); transform: translateX(-1px);
+}
+.pace-good { background: var(--pn-success); }
+.pace-warn { background: var(--pn-warning); }
+.pace-behind { background: var(--pn-danger); }
+.pace-neutral { background: var(--pn-text-muted); }

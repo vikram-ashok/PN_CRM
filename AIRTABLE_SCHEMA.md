@@ -86,9 +86,11 @@ Access: Admin/Super Admin see all members; a Team member sees only their own row
 
 **Nurture** is just a Funnel Stage value — the CRM never sends emails. An
 external automation (outside this app) watches Airtable for Nurture-stage
-records and runs email drips elsewhere. Admin/Super Admin can move a lead
-back out of Nurture into an active stage at any time from the Lead Detail
-edit form.
+records and runs email drips elsewhere. A lead can be moved back out of
+Nurture into an active stage at any time from the Lead Detail edit form —
+by Admin/Super Admin on any lead, or by a Team member on a lead they own
+(as of 22 Jul 2026 Team may edit Funnel Stage / Notes / Email / Phone on
+their own leads; see SESSION_LOG_2026-07-22.md).
 
 ## Recreating this schema from scratch (if you ever need a second base)
 

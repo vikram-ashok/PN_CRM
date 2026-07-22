@@ -13,7 +13,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api, FUNNEL_STAGES, ACTIVITY_TYPES, CALL_OUTCOMES, EMAIL_EVENTS } from '../api.js';
+import { api, FUNNEL_STAGES, ACTIVITY_TYPES, CALL_OUTCOMES, EMAIL_EVENTS, LINKEDIN_EVENTS } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import RoleGate from '../components/RoleGate.jsx';
 
@@ -29,7 +29,7 @@ export default function LeadDetail() {
   const [activities, setActivities] = useState([]);
   const [error, setError] = useState('');
   const [editForm, setEditForm] = useState(null);
-  const emptyActivity = { summary: '', activityType: ACTIVITY_TYPES[0], callOutcome: '', emailEvent: 'Sent', isFollowUp: false, dnpAttempt: '' };
+  const emptyActivity = { summary: '', activityType: ACTIVITY_TYPES[0], callOutcome: '', emailEvent: 'Sent', linkedinEvent: 'Request Sent', messageContent: '', isFollowUp: false, dnpAttempt: '' };
   const [newActivity, setNewActivity] = useState(emptyActivity);
 
   // Suggested next DNP attempt for this lead: count unanswered calls since the
@@ -66,6 +66,7 @@ export default function LeadDetail() {
           lostReason: found.fields['Lost Reason'] || '',
           nextContactDate: found.fields['Next Contact Date'] || '',
           nextContactNote: found.fields['Next Contact Note'] || '',
+          linkedinUrl: found.fields['LinkedIn URL'] || '',
         });
       }
     }).catch((err) => setError(err.message));
@@ -93,6 +94,7 @@ export default function LeadDetail() {
           phone: editForm.phone,
           nextContactDate: editForm.nextContactDate,
           nextContactNote: editForm.nextContactNote,
+          linkedinUrl: editForm.linkedinUrl,
         }
       : editForm;
     try {
@@ -115,7 +117,15 @@ export default function LeadDetail() {
 
   const logActivity = async (e) => {
     e.preventDefault();
-    if (!newActivity.summary) return;
+    // Email / LinkedIn entries can stand on their event + content, so give
+    // them a sensible default summary when the rep leaves it blank. Call /
+    // Meeting / Note still need a typed summary.
+    let summary = (newActivity.summary || '').trim();
+    if (!summary) {
+      if (newActivity.activityType === 'Email') summary = `Email: ${newActivity.emailEvent}`;
+      else if (newActivity.activityType === 'LinkedIn') summary = `LinkedIn: ${newActivity.linkedinEvent}`;
+      else return;
+    }
     // For an unanswered call, default the attempt to the suggested next level
     // if the rep didn't pick one explicitly.
     const dnpAttempt =
@@ -123,7 +133,7 @@ export default function LeadDetail() {
         ? Number(newActivity.dnpAttempt) || suggestedDnp
         : undefined;
     try {
-      await api.createActivity({ ...newActivity, dnpAttempt, leadId: id });
+      await api.createActivity({ ...newActivity, summary, dnpAttempt, leadId: id });
       setNewActivity(emptyActivity);
       load();
     } catch (err) {
@@ -149,6 +159,11 @@ export default function LeadDetail() {
         <span className="badge-nextcontact" style={{ marginLeft: '0.5rem' }}>
           Next contact: {lead.fields['Next Contact Date']}
         </span>
+      )}
+      {lead.fields['LinkedIn URL'] && (
+        <a href={lead.fields['LinkedIn URL']} target="_blank" rel="noreferrer" style={{ marginLeft: '0.5rem', fontSize: '0.85rem' }}>
+          LinkedIn profile ↗
+        </a>
       )}
 
       <div className="section-title">Lead Details</div>
@@ -185,6 +200,10 @@ export default function LeadDetail() {
           <div className="form-field">
             <label>Next contact note</label>
             <input value={editForm.nextContactNote} placeholder="e.g. asked to call back re pricing" onChange={(e) => setEditForm({ ...editForm, nextContactNote: e.target.value })} />
+          </div>
+          <div className="form-field">
+            <label>LinkedIn URL</label>
+            <input value={editForm.linkedinUrl} placeholder="https://www.linkedin.com/in/..." onChange={(e) => setEditForm({ ...editForm, linkedinUrl: e.target.value })} />
           </div>
           <div className="card" style={{ background: 'var(--pn-bg, #f7f7f8)', marginBottom: '1rem' }}>
             <p><strong>Company:</strong> {companyName || '-'}</p>
@@ -244,6 +263,10 @@ export default function LeadDetail() {
             <label>Next contact note</label>
             <input value={editForm.nextContactNote} placeholder="e.g. asked to call back re pricing" onChange={(e) => setEditForm({ ...editForm, nextContactNote: e.target.value })} />
           </div>
+          <div className="form-field">
+            <label>LinkedIn URL</label>
+            <input value={editForm.linkedinUrl} placeholder="https://www.linkedin.com/in/..." onChange={(e) => setEditForm({ ...editForm, linkedinUrl: e.target.value })} />
+          </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button type="submit">Save Changes</button>
             <RoleGate allow={['admin', 'superadmin']}>
@@ -273,11 +296,26 @@ export default function LeadDetail() {
             tags.push(co === 'DNP' && a.fields['DNP Attempt'] ? `DNP ${a.fields['DNP Attempt']}` : co);
           }
           if (a.fields['Email Event']) tags.push(a.fields['Email Event']);
+          if (a.fields['LinkedIn Event']) tags.push(a.fields['LinkedIn Event']);
           if (a.fields['Is Follow-Up']) tags.push('Follow-up');
+          const isReply = a.fields['Email Event'] === 'Replied' || a.fields['LinkedIn Event'] === 'Replied';
+          const content = a.fields['Message Content'];
           return (
             <div key={a.id} style={{ marginBottom: '0.5rem', borderBottom: '1px solid var(--pn-border)', paddingBottom: '0.5rem' }}>
               <strong>[{a.fields['Activity Type']}]</strong> {a.fields['Summary']}
               {tags.map((t) => <span key={t} className="activity-tag">{t}</span>)}
+              {content && (
+                <div
+                  style={{
+                    marginTop: '0.35rem', padding: '0.4rem 0.6rem',
+                    background: 'var(--pn-bg-alt)', borderRadius: 'var(--pn-radius)',
+                    borderLeft: `3px solid ${isReply ? 'var(--pn-success)' : 'var(--pn-border)'}`,
+                    whiteSpace: 'pre-wrap', fontSize: '0.88rem',
+                  }}
+                >
+                  {isReply ? <strong>Reply: </strong> : null}{content}
+                </div>
+              )}
               <div className="muted">{a.fields['Logged By']} - {a.fields['Date']}</div>
             </div>
           );
@@ -328,8 +366,39 @@ export default function LeadDetail() {
             </div>
           )}
 
-          {/* Follow-up flag applies to Calls and Emails. */}
-          {(newActivity.activityType === 'Call' || newActivity.activityType === 'Email') && (
+          {/* LinkedIn-specific: which outreach step this row records. */}
+          {newActivity.activityType === 'LinkedIn' && (
+            <div className="form-field">
+              <label>LinkedIn step</label>
+              <select value={newActivity.linkedinEvent} onChange={(e) => setNewActivity({ ...newActivity, linkedinEvent: e.target.value })}>
+                {LINKEDIN_EVENTS.map((ev) => <option key={ev} value={ev}>{ev}</option>)}
+              </select>
+              <p className="muted">Log each step as its own entry: connection Request Sent → Accepted, then Message Sent → Read → Replied.</p>
+            </div>
+          )}
+
+          {/* Message body / reply text - for the content-bearing Email & LinkedIn steps. */}
+          {((newActivity.activityType === 'Email' && (newActivity.emailEvent === 'Sent' || newActivity.emailEvent === 'Replied')) ||
+            (newActivity.activityType === 'LinkedIn' && (newActivity.linkedinEvent === 'Message Sent' || newActivity.linkedinEvent === 'Replied'))) && (
+            <div className="form-field">
+              <label>
+                {(newActivity.emailEvent === 'Replied' || newActivity.linkedinEvent === 'Replied')
+                  ? 'Reply received (paste it here)'
+                  : 'Message content'}
+              </label>
+              <textarea
+                rows={4}
+                placeholder={(newActivity.emailEvent === 'Replied' || newActivity.linkedinEvent === 'Replied')
+                  ? "What did they say?"
+                  : "Paste the message you sent"}
+                value={newActivity.messageContent}
+                onChange={(e) => setNewActivity({ ...newActivity, messageContent: e.target.value })}
+              />
+            </div>
+          )}
+
+          {/* Follow-up flag applies to Calls, Emails and LinkedIn messages. */}
+          {(newActivity.activityType === 'Call' || newActivity.activityType === 'Email' || newActivity.activityType === 'LinkedIn') && (
             <div className="form-field">
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <input
@@ -338,7 +407,7 @@ export default function LeadDetail() {
                   onChange={(e) => setNewActivity({ ...newActivity, isFollowUp: e.target.checked })}
                   style={{ width: 'auto' }}
                 />
-                This is a follow-up {newActivity.activityType === 'Call' ? 'call' : 'email'}
+                This is a follow-up {newActivity.activityType === 'Call' ? 'call' : newActivity.activityType === 'Email' ? 'email' : 'message'}
               </label>
             </div>
           )}
@@ -346,7 +415,9 @@ export default function LeadDetail() {
           <div className="form-field">
             <textarea
               rows={2}
-              placeholder="What happened?"
+              placeholder={(newActivity.activityType === 'Email' || newActivity.activityType === 'LinkedIn')
+                ? "Summary (optional - a default is used if blank)"
+                : "What happened?"}
               value={newActivity.summary}
               onChange={(e) => setNewActivity({ ...newActivity, summary: e.target.value })}
             />

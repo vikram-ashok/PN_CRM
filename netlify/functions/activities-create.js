@@ -25,13 +25,17 @@ exports.handler = async (event, context) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON body' }) };
   }
 
-  const { summary, leadId, activityType, date, callOutcome, isFollowUp, emailEvent, dnpAttempt } = payload;
+  const {
+    summary, leadId, activityType, date, callOutcome, isFollowUp,
+    emailEvent, dnpAttempt, messageContent, linkedinEvent,
+  } = payload;
 
   if (!summary) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Summary is required.' }) };
   }
 
   const type = activityType || 'Note';
+  const LINKEDIN_EVENTS = ['Request Sent', 'Accepted', 'Message Sent', 'Read', 'Replied'];
 
   const fields = {
     'Summary': summary,
@@ -53,12 +57,21 @@ exports.handler = async (event, context) => {
   if (type === 'Email' && ['Sent', 'Opened', 'Replied'].includes(emailEvent)) {
     fields['Email Event'] = emailEvent;
   }
-  if ((type === 'Call' || type === 'Email') && isFollowUp) {
+  if (type === 'LinkedIn' && LINKEDIN_EVENTS.includes(linkedinEvent)) {
+    fields['LinkedIn Event'] = linkedinEvent;
+  }
+  // Follow-up flag applies to the outreach types (calls, emails, LinkedIn msgs).
+  if ((type === 'Call' || type === 'Email' || type === 'LinkedIn') && isFollowUp) {
     fields['Is Follow-Up'] = true;
+  }
+  // Message body / reply text - for Email and LinkedIn entries.
+  if ((type === 'Email' || type === 'LinkedIn') && messageContent) {
+    fields['Message Content'] = messageContent;
   }
 
   try {
-    const record = await createRecord(TABLES.ACTIVITIES, fields);
+    // typecast so a new "LinkedIn" Activity Type option registers on first use.
+    const record = await createRecord(TABLES.ACTIVITIES, fields, { typecast: true });
     return { statusCode: 201, body: JSON.stringify(record) };
   } catch (err) {
     return { statusCode: err.statusCode || 500, body: JSON.stringify({ error: err.message }) };

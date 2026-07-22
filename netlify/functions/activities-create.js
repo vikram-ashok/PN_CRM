@@ -25,7 +25,7 @@ exports.handler = async (event, context) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON body' }) };
   }
 
-  const { summary, leadId, activityType, date, callOutcome, isFollowUp, emailEvent } = payload;
+  const { summary, leadId, activityType, date, callOutcome, isFollowUp, emailEvent, dnpAttempt } = payload;
 
   if (!summary) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Summary is required.' }) };
@@ -44,6 +44,11 @@ exports.handler = async (event, context) => {
   // Performance-tracking metadata (only meaningful for the relevant type).
   if (type === 'Call' && (callOutcome === 'Connected' || callOutcome === 'DNP')) {
     fields['Call Outcome'] = callOutcome;
+    // DNP attempt number (1-5) - only meaningful on an unanswered call.
+    if (callOutcome === 'DNP') {
+      const n = Number(dnpAttempt);
+      if (Number.isFinite(n) && n >= 1 && n <= 5) fields['DNP Attempt'] = Math.round(n);
+    }
   }
   if (type === 'Email' && ['Sent', 'Opened', 'Replied'].includes(emailEvent)) {
     fields['Email Event'] = emailEvent;

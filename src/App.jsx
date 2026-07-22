@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 import TeamLockdown from './components/TeamLockdown.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Today from './pages/Today.jsx';
 import Performance from './pages/Performance.jsx';
 import AddLead from './pages/AddLead.jsx';
 import LeadsList from './pages/LeadsList.jsx';
@@ -33,6 +34,7 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
         <Route path="/performance" element={<ProtectedRoute><Performance /></ProtectedRoute>} />
         <Route path="/leads" element={<ProtectedRoute><LeadsList /></ProtectedRoute>} />
         <Route path="/leads/new" element={<ProtectedRoute><AddLead /></ProtectedRoute>} />

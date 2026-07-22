@@ -25,6 +25,7 @@ export default function Navbar() {
 
       <div className="navbar-links">
         <NavLink to="/dashboard">Dashboard</NavLink>
+        <NavLink to="/today">Today</NavLink>
         <NavLink to="/performance">Performance</NavLink>
         <NavLink to="/leads">Leads</NavLink>
         <NavLink to="/leads/new">Add Lead</NavLink>

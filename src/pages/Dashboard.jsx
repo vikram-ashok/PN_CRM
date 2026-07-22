@@ -4,11 +4,14 @@
 // edit controls live here by design, it's just a pipeline snapshot).
 // Shows a count of leads per Funnel Stage.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api, FUNNEL_STAGES } from '../api.js';
+import { bucketDueLeads } from '../dueLeads.js';
 
 export default function Dashboard() {
   const [summary, setSummary] = useState(null);
+  const [leads, setLeads] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -18,7 +21,12 @@ export default function Dashboard() {
       .then(setSummary)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    // Leads are role-scoped server-side, so the due counts are already
+    // "mine" for a team member and "everyone's" for an admin.
+    api.listLeads().then((d) => setLeads(d.records || [])).catch(() => {});
   }, []);
+
+  const { overdue, today } = useMemo(() => bucketDueLeads(leads), [leads]);
 
   const maxCount = summary
     ? Math.max(1, ...FUNNEL_STAGES.map((s) => summary.counts[s] || 0))
@@ -31,6 +39,15 @@ export default function Dashboard() {
 
       {error && <div className="error-banner">{error}</div>}
       {loading && <div className="loading-spinner">Loading dashboard...</div>}
+
+      <Link to="/today" className="due-panel">
+        <div className="due-panel-nums">
+          <span className="due-count due-overdue">{overdue.length}</span> overdue
+          <span className="due-sep">·</span>
+          <span className="due-count due-today">{today.length}</span> due today
+        </div>
+        <span className="due-cta">Go to Today &rarr;</span>
+      </Link>
 
       {summary && (
         <div className="stage-summary-grid">

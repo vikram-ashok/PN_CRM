@@ -17,8 +17,9 @@
 const { requireRole, getUserRole, getUser } = require('./utils/auth');
 const { TABLES, getRecord, updateRecord } = require('./utils/airtable');
 
-// Fields a Team member is allowed to change on a lead they own.
-const TEAM_EDITABLE_KEYS = ['funnelStage', 'notes', 'email', 'phone'];
+// Fields a Team member is allowed to change on a lead they own. Includes the
+// next-contact date/note so a rep can schedule their own callbacks.
+const TEAM_EDITABLE_KEYS = ['funnelStage', 'notes', 'email', 'phone', 'nextContactDate', 'nextContactNote'];
 
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'PATCH' && event.httpMethod !== 'POST') {
@@ -91,6 +92,8 @@ exports.handler = async (event, context) => {
     notes: 'Notes',
     lastActivityDate: 'Last Activity Date',
     lostReason: 'Lost Reason',
+    nextContactDate: 'Next Contact Date',
+    nextContactNote: 'Next Contact Note',
     companyId: 'Company',
   };
 

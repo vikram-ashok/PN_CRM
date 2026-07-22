@@ -10,14 +10,24 @@
 //
 // Targets (working days = Mon-Fri):
 //   - Leads sourced target      = 30 per working day in range
+//   - Calls made target         = 30 per working day (call the 30 sourced leads)
+//   - Emails sent target        = 30 per working day (email the 30 sourced leads)
 //   - Appointments target       = the monthly quota of 10, pro-rated by
 //                                  working days (so a ~5-working-day week
 //                                  lands around 2-3, a full month = 10)
+//
+// PACE: alongside each full-range target we return `elapsedWorkingDays` - the
+// working days from the range start THROUGH today (capped at the range end).
+// The frontend uses elapsed/total to draw a "where you should be today" tick
+// and to colour each bar by pace, so a mid-month view isn't misread as "behind"
+// just because the whole month's target hasn't been hit yet.
 
 const { requireRole, getUserRole, getUser } = require('./utils/auth');
 const { TABLES, listRecords } = require('./utils/airtable');
 
 const LEADS_PER_WORKING_DAY = 30;
+const CALLS_PER_WORKING_DAY = 30;
+const EMAILS_PER_WORKING_DAY = 30;
 const APPTS_PER_MONTH = 10;
 
 function isWorkingDay(d) {
@@ -174,8 +184,18 @@ exports.handler = async (event, context) => {
     if (isTeam && callerEmail) ensure(callerEmail);
 
     const workingDays = workingDaysInRange(from, to);
+
+    // Elapsed working days = range start THROUGH today (start of tomorrow, UTC),
+    // never past the range end. Drives the "expected by now" pace tick.
+    const now = new Date();
+    const tomorrowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    const elapsedEnd = tomorrowStart < to ? tomorrowStart : to;
+    const elapsedWorkingDays = elapsedEnd > from ? workingDaysInRange(from, elapsedEnd) : 0;
+
     const targets = {
       leadsSourced: LEADS_PER_WORKING_DAY * workingDays,
+      callsMade: CALLS_PER_WORKING_DAY * workingDays,
+      emailsSent: EMAILS_PER_WORKING_DAY * workingDays,
       appointments: Math.round(appointmentsTarget(from, to)),
     };
 
@@ -189,6 +209,7 @@ exports.handler = async (event, context) => {
         from: from.toISOString(),
         to: to.toISOString(),
         workingDays,
+        elapsedWorkingDays,
         targets,
         scope: isTeam ? 'self' : 'all',
         rows,

@@ -67,6 +67,58 @@ const PERIODS = [
   { key: 'month', label: 'Month' },
 ];
 
+// The four targeted metrics shown as paced progress bars in the scoreboard.
+// `key` matches row.metrics / data.targets; short labels keep the bars compact.
+const SCOREBOARD_METRICS = [
+  { key: 'leadsSourced', label: 'Leads' },
+  { key: 'callsMade', label: 'Calls' },
+  { key: 'emailsSent', label: 'Emails' },
+  { key: 'appointments', label: 'Appointments' },
+];
+
+// Colour a bar by PACE (actual vs what's expected by today), not raw total.
+// >=95% of expected = on track/ahead, >=75% = slightly behind, else behind.
+function paceClass(actual, expected) {
+  if (expected <= 0) return 'pace-neutral';
+  const ratio = actual / expected;
+  if (ratio >= 0.95) return 'pace-good';
+  if (ratio >= 0.75) return 'pace-warn';
+  return 'pace-behind';
+}
+
+// One rep's row of paced progress bars.
+function ScoreCard({ label, metrics, targets, elapsedFraction }) {
+  return (
+    <div className="score-card">
+      <div className="score-name">{label}</div>
+      <div className="score-metrics">
+        {SCOREBOARD_METRICS.map((m) => {
+          const actual = metrics[m.key] || 0;
+          const target = targets[m.key] || 0;
+          const expected = target * elapsedFraction;
+          const fillPct = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
+          const tickPct = Math.min(elapsedFraction * 100, 100);
+          const cls = paceClass(actual, expected);
+          return (
+            <div className="score-metric" key={m.key}>
+              <div className="score-metric-head">
+                <span className="score-metric-label">{m.label}</span>
+                <span className="score-metric-val">
+                  {actual}<span className="perf-target"> / {target}</span>
+                </span>
+              </div>
+              <div className="score-bar-track">
+                <div className={`score-bar-fill ${cls}`} style={{ width: `${fillPct}%` }} />
+                {target > 0 && <div className="score-bar-tick" style={{ left: `${tickPct}%` }} />}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Performance() {
   const [period, setPeriod] = useState('month');
   const [ref, setRef] = useState(new Date());
@@ -114,14 +166,45 @@ export default function Performance() {
 
       {data && (
         <p className="muted">
-          {data.workingDays} working day{data.workingDays === 1 ? '' : 's'} in range &middot;
-          leads target {data.targets.leadsSourced} &middot; appointments target {data.targets.appointments}
+          {data.elapsedWorkingDays} of {data.workingDays} working day{data.workingDays === 1 ? '' : 's'} elapsed &middot;
+          leads &amp; calls &amp; emails target {data.targets.leadsSourced} each &middot; appointments target {data.targets.appointments}
           {data.scope === 'self' && ' · showing your own stats'}
         </p>
       )}
 
       {error && <div className="error-banner">{error}</div>}
       {loading && <div className="loading-spinner">Loading performance...</div>}
+
+      {data && !loading && data.rows.length > 0 && (
+        <>
+          <div className="section-title">
+            {data.scope === 'self' ? 'Your progress' : 'Team scoreboard'}
+          </div>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Bar shows how much of the target is done; the tick marks where you should be today.
+            Colour reflects pace, not raw total.
+          </p>
+          <div className="score-legend">
+            <span><i className="dot pace-good" /> On track / ahead</span>
+            <span><i className="dot pace-warn" /> Slightly behind</span>
+            <span><i className="dot pace-behind" /> Behind</span>
+            <span><i className="tick" /> Target pace (today)</span>
+          </div>
+          <div className="score-board">
+            {data.rows.map((row) => (
+              <ScoreCard
+                key={row.email}
+                label={row.email}
+                metrics={row.metrics}
+                targets={data.targets}
+                elapsedFraction={data.workingDays ? data.elapsedWorkingDays / data.workingDays : 0}
+              />
+            ))}
+          </div>
+
+          <div className="section-title">All metrics</div>
+        </>
+      )}
 
       {data && !loading && data.rows.length === 0 && (
         <div className="card"><p className="muted">No activity recorded in this period.</p></div>

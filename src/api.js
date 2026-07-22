@@ -128,11 +128,11 @@ export const EMAIL_EVENTS = ['Sent', 'Opened', 'Replied'];
 export const PERFORMANCE_METRICS = [
   { key: 'leadsSourced', label: 'Leads sourced', target: 'leadsSourced' },
   { key: 'appointments', label: 'Appointments set', target: 'appointments' },
-  { key: 'callsMade', label: 'Calls made' },
+  { key: 'callsMade', label: 'Calls made', target: 'callsMade' },
   { key: 'callsConnected', label: 'Calls connected' },
   { key: 'dnps', label: 'DNPs' },
   { key: 'followUpCalls', label: 'Follow-up calls' },
-  { key: 'emailsSent', label: 'Emails sent' },
+  { key: 'emailsSent', label: 'Emails sent', target: 'emailsSent' },
   { key: 'emailsOpened', label: 'Emails opened' },
   { key: 'followUpEmails', label: 'Follow-up emails' },
   { key: 'emailReplies', label: 'Email replies' },

@@ -69,11 +69,27 @@ The `/performance` page aggregates per team member (by `Owner` on Leads and
 
 1. **Leads sourced** — Leads with `Created Date` in range · target = 30 × working days (Mon–Fri)
 2. **Appointments set** — Activities of type `Meeting` · target = monthly 10 pro-rated by working days (~2–3/week)
-3. **Calls made** — Activities of type `Call`
+3. **Calls made** — Activities of type `Call` · target = 30 × working days (call each sourced lead)
 4. **Calls connected** — `Call` + Call Outcome = Connected
 5. **DNPs** — `Call` + Call Outcome = DNP
 6. **Follow-up calls** — `Call` + Is Follow-Up
-7. **Emails sent** — `Email` + Email Event = Sent (blank event treated as Sent)
+7. **Emails sent** — `Email` + Email Event = Sent (blank event treated as Sent) · target = 30 × working days
+
+### Pace-based scoreboard (Team Performance page)
+
+The Performance page shows a per-rep **scoreboard** above the full metric
+table. For the four targeted metrics (leads, calls, emails, appointments) each
+progress bar's fill = actual ÷ full-range target, and a tick marks
+"expected by today" = target × (`elapsedWorkingDays` ÷ `workingDays`). Bar
+colour reflects **pace** (actual ÷ expected-to-date): green ≥95%, amber ≥75%,
+red below. `performance-summary.js` returns `elapsedWorkingDays` alongside
+`workingDays` to drive this. Access is unchanged: admins see every rep, a team
+member sees only their own card (server-enforced).
+
+> Not yet tracked as targets: **monthly conversions (2–3)** and **$ ticket /
+> pipeline size ($10K min, $30–50K viable)**. These need new lead fields (a
+> won/conversion flag + a deal value) before they can join the scoreboard —
+> see SESSION_LOG_2026-07-22.md follow-ups.
 8. **Emails opened** — `Email` + Email Event = Opened
 9. **Follow-up emails** — `Email` (Sent) + Is Follow-Up
 10. **Email replies** — `Email` + Email Event = Replied

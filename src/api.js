@@ -88,6 +88,7 @@ export const api = {
   listUsers: () => request('users-list'),
   inviteUser: (email, role) => request('users-invite', { method: 'POST', body: { email, role } }),
   updateUserRole: (userId, role) => request('users-update-role', { method: 'PATCH', body: { userId, role } }),
+  deleteUser: (userId) => request('users-delete', { method: 'DELETE', body: { userId } }),
 };
 
 // Funnel stage order shared across Dashboard / Kanban / forms - keep in

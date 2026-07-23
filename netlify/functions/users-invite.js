@@ -2,9 +2,10 @@
 //
 // POST /api/users-invite   body: { email, role }
 // Super Admin ONLY - invites a new user via the Identity Admin API and sets
-// their initial role in app_metadata.roles. Netlify sends the actual invite
-// email itself once the user is created via the admin API with
-// `confirm: false` behaviour (an invite/confirmation email goes out).
+// their initial role in app_metadata.roles. This uses the `/invite` endpoint,
+// which creates the user AND sends them an invitation email with a
+// set-your-password link. (Do NOT use `/admin/users` here: it creates a user
+// record but never sends any email - that was the original bug.)
 //
 // FALLBACK: Vikram can also invite users manually from Site settings >
 // Identity > "Invite users", then edit their app_metadata roles field by
@@ -36,7 +37,7 @@ exports.handler = async (event, context) => {
   const safeRole = VALID_ROLES.includes(role) ? role : 'team';
 
   try {
-    const user = await identityRequest(context, '/users', {
+    const user = await identityRequest(context, '/invite', {
       method: 'POST',
       body: {
         email,

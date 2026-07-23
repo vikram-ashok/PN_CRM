@@ -31,7 +31,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const user = await identityRequest(context, `/users/${userId}`, {
+    const user = await identityRequest(context, `/admin/users/${userId}`, {
       method: 'PUT',
       body: { app_metadata: { roles: [role] } },
     });

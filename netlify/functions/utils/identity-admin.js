@@ -3,9 +3,12 @@
 // Shared helper for calling the Netlify Identity Admin API from a function.
 // Docs: https://docs.netlify.com/visitor-access/identity/identity-api/
 //
-// The Identity Admin API lives at:
-//   {SITE_URL}/.netlify/identity/admin/users
-// and requires an admin-scoped bearer token.
+// The Identity service lives at {SITE_URL}/.netlify/identity and requires an
+// admin-scoped bearer token. Note that NOT every admin-authenticated route is
+// under /admin: user CRUD is at /admin/users[/id], but the invite route is at
+// the identity root (/invite), NOT /admin/invite. For that reason this helper
+// returns the Identity ROOT url and each caller passes the full path it needs
+// (e.g. "/admin/users", "/admin/users/{id}", "/invite").
 //
 // IMPORTANT (read the README's "User Management" section too): Netlify runs
 // the Identity service per-site, and the cleanest way to authenticate
@@ -18,13 +21,18 @@
 // dev / edge cases where clientContext.identity isn't populated (e.g. some
 // local emulation scenarios).
 
-function getIdentityEndpointAndToken(context) {
+function getIdentityBaseAndToken(context) {
   const identity = context && context.clientContext && context.clientContext.identity;
 
-  const siteUrl = (identity && identity.url) || process.env.URL;
+  // identity.url is already the Identity root (".../.netlify/identity").
+  // The env fallback is the bare site URL, so append the identity path there.
+  let baseUrl = identity && identity.url;
+  if (!baseUrl && process.env.URL) {
+    baseUrl = `${process.env.URL.replace(/\/$/, '')}/.netlify/identity`;
+  }
   const token = (identity && identity.token) || process.env.IDENTITY_ADMIN_TOKEN;
 
-  if (!siteUrl) {
+  if (!baseUrl) {
     throw new Error(
       'Could not determine Identity site URL. Make sure Netlify Identity is enabled for this site.'
     );
@@ -36,12 +44,12 @@ function getIdentityEndpointAndToken(context) {
     );
   }
 
-  return { adminUrl: `${siteUrl}/admin`, token };
+  return { baseUrl, token };
 }
 
 async function identityRequest(context, path, { method = 'GET', body } = {}) {
-  const { adminUrl, token } = getIdentityEndpointAndToken(context);
-  const url = `${adminUrl}${path}`;
+  const { baseUrl, token } = getIdentityBaseAndToken(context);
+  const url = `${baseUrl}${path}`;
 
   const res = await fetch(url, {
     method,

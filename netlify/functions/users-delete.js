@@ -42,7 +42,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    await identityRequest(context, `/users/${userId}`, { method: 'DELETE' });
+    await identityRequest(context, `/admin/users/${userId}`, { method: 'DELETE' });
     return { statusCode: 200, body: JSON.stringify({ success: true, userId }) };
   } catch (err) {
     return { statusCode: err.statusCode || 500, body: JSON.stringify({ error: err.message }) };

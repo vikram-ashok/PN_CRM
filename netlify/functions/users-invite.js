@@ -37,13 +37,29 @@ exports.handler = async (event, context) => {
   const safeRole = VALID_ROLES.includes(role) ? role : 'team';
 
   try {
+    // 1) Send the invitation email + create the user. The invite route is at
+    //    the Identity ROOT ("/invite"), NOT under "/admin".
     const user = await identityRequest(context, '/invite', {
       method: 'POST',
-      body: {
-        email,
-        app_metadata: { roles: [safeRole] },
-      },
+      body: { email },
     });
+
+    // 2) The invite endpoint does not persist app_metadata, so set the chosen
+    //    role explicitly on the just-created user via the admin users route.
+    if (user && user.id) {
+      try {
+        await identityRequest(context, `/admin/users/${user.id}`, {
+          method: 'PUT',
+          body: { app_metadata: { roles: [safeRole] } },
+        });
+        user.app_metadata = { ...(user.app_metadata || {}), roles: [safeRole] };
+      } catch (roleErr) {
+        // The invite email already went out; if role-setting failed the Super
+        // Admin can still fix it with the Change Role dropdown. Don't fail the
+        // whole request over it.
+      }
+    }
+
     return { statusCode: 201, body: JSON.stringify(user) };
   } catch (err) {
     return { statusCode: err.statusCode || 500, body: JSON.stringify({ error: err.message }) };

@@ -20,7 +20,7 @@ exports.handler = async (event, context) => {
   if (denied) return denied;
 
   try {
-    const data = await identityRequest(context, '/users');
+    const data = await identityRequest(context, '/admin/users');
     return { statusCode: 200, body: JSON.stringify(data) };
   } catch (err) {
     return { statusCode: err.statusCode || 500, body: JSON.stringify({ error: err.message }) };

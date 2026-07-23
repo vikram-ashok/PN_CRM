@@ -32,7 +32,7 @@ exports.handler = async (event, context) => {
   if (denied) return denied;
 
   try {
-    const data = await identityRequest(context, '/users');
+    const data = await identityRequest(context, '/admin/users');
     const users = (data && data.users) || [];
     const members = users
       .map((u) => ({

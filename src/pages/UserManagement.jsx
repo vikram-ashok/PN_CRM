@@ -18,7 +18,7 @@ import { useAuth } from '../AuthContext.jsx';
 const ROLES = ['team', 'admin', 'superadmin'];
 
 export default function UserManagement() {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
   const [users, setUsers] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -69,6 +69,20 @@ export default function UserManagement() {
     }
   };
 
+  const deleteUser = async (u) => {
+    setError('');
+    const confirmed = window.confirm(
+      `Delete ${u.email}? This permanently removes their account and access to the CRM. This cannot be undone.`
+    );
+    if (!confirmed) return;
+    try {
+      await api.deleteUser(u.id);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="page-container">
       <h1>Manage Users</h1>
@@ -99,11 +113,12 @@ export default function UserManagement() {
       {!loading && (
         <table className="data-table">
           <thead>
-            <tr><th>Email</th><th>Current Role</th><th>Change Role</th></tr>
+            <tr><th>Email</th><th>Current Role</th><th>Change Role</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {users.map((u) => {
               const currentRole = (u.app_metadata && u.app_metadata.roles && u.app_metadata.roles[0]) || 'none';
+              const isSelf = user && user.id === u.id;
               return (
                 <tr key={u.id}>
                   <td>{u.email}</td>
@@ -112,6 +127,17 @@ export default function UserManagement() {
                     <select value={currentRole} onChange={(e) => changeRole(u.id, e.target.value)}>
                       {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                     </select>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => deleteUser(u)}
+                      disabled={isSelf}
+                      title={isSelf ? 'You cannot delete your own account' : `Delete ${u.email}`}
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               );

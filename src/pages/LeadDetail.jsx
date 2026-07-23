@@ -99,7 +99,10 @@ export default function LeadDetail() {
       : editForm;
     try {
       await api.updateLead(id, payload);
-      load();
+      // Team members are sent back to the Leads tab after saving; Admins stay
+      // on the record so they can keep editing.
+      if (isTeam) navigate('/leads');
+      else load();
     } catch (err) {
       setError(err.message);
     }
@@ -135,7 +138,10 @@ export default function LeadDetail() {
     try {
       await api.createActivity({ ...newActivity, summary, dnpAttempt, leadId: id });
       setNewActivity(emptyActivity);
-      load();
+      // Team members return to the Leads tab once the activity is logged;
+      // Admins stay on the timeline to keep logging.
+      if (isTeam) navigate('/leads');
+      else load();
     } catch (err) {
       setError(err.message);
     }

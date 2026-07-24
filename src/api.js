@@ -69,6 +69,9 @@ export const api = {
   // Bulk import leads from parsed CSV rows
   importLeads: (rows) => request('leads-import', { method: 'POST', body: { rows } }),
 
+  // Bulk import call activities from a parsed dialer report (Admin/Super Admin)
+  importCalls: (calls) => request('calls-import', { method: 'POST', body: { calls } }),
+
   // Deals
   listDeals: (leadId) => request('deals-list', { query: { leadId } }),
   createDeal: (payload) => request('deals-create', { method: 'POST', body: payload }),

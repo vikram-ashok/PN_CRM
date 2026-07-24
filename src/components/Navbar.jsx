@@ -29,6 +29,9 @@ export default function Navbar() {
         <NavLink to="/performance">Performance</NavLink>
         <NavLink to="/leads">Leads</NavLink>
         <NavLink to="/leads/new">Add Lead</NavLink>
+        <RoleGate allow={['admin', 'superadmin']}>
+          <NavLink to="/import-calls">Import Calls</NavLink>
+        </RoleGate>
         <RoleGate allow={['superadmin']}>
           <NavLink to="/users">Manage Users</NavLink>
         </RoleGate>

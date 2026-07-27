@@ -20,6 +20,33 @@ function fmtDuration(s) {
   return `${Math.floor(n / 60)}m ${n % 60}s`;
 }
 
+// The columns the parser (buildCallGroups) actually reads from a dialer export.
+// Extra columns in a real IP Momentum export are ignored, so this minimal set
+// is what matters.
+const CALLS_SAMPLE = [
+  'Date,Called To,Duration,Hangup Cause',
+  // One number dialed 3 times, never answered -> logged as DNP 3.
+  '2026-07-20 09:15:00,14155550101,0,NO ANSWER',
+  '2026-07-21 10:05:00,14155550101,0,BUSY',
+  '2026-07-22 11:30:00,14155550101,0,NO ANSWER',
+  // Dialer's misrouted FAILED retry (no country code) + the real ANSWERED
+  // attempt (with country code) -> collapsed to ONE connected call (73s).
+  '2026-07-20 14:00:00,4155550102,0,FAILED',
+  '2026-07-20 14:00:20,14155550102,73,ANSWERED',
+  // A single unanswered call -> DNP 1.
+  '2026-07-23 16:45:00,14155550103,0,NO ANSWER',
+].join('\n');
+
+function downloadCsv(filename, content) {
+  const blob = new Blob([content], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // Label for a group's outcome, including the DNP level derived from how many
 // times the number was dialed in the report (and the Cold flip past the ladder).
 function OutcomeTag({ group }) {
@@ -199,6 +226,14 @@ export default function ImportCalls() {
       {parseError && <div className="error-banner">{parseError}</div>}
 
       <div className="card" style={{ maxWidth: 560 }}>
+        <button type="button" className="secondary" onClick={() => downloadCsv('productnova-calls-sample.csv', CALLS_SAMPLE)}>
+          Download sample CSV
+        </button>
+        <p className="muted" style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
+          Required columns (header row, exact names): <strong>Date</strong>, <strong>Called To</strong>,
+          {' '}<strong>Duration</strong> (seconds), <strong>Hangup Cause</strong> (ANSWERED / BUSY / NO ANSWER / FAILED).
+          Any extra columns in your dialer export are ignored.
+        </p>
         <div className="form-field" style={{ marginBottom: 0 }}>
           <label>Call report CSV</label>
           <input type="file" accept=".csv,text/csv" onChange={onFile} />

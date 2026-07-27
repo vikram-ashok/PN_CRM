@@ -21,7 +21,7 @@ import RoleGate from '../components/RoleGate.jsx';
 
 const SAMPLE_HEADERS = [
   'Full Name', 'Email', 'Phone', 'Company', 'Lead Source', 'Funnel Stage',
-  'Owner', 'Source / Campaign Detail', 'Notes',
+  'Owner', 'Sourced By', 'Source / Campaign Detail', 'Notes',
 ];
 
 // Map a (lowercased, trimmed) CSV header to our payload field name.
@@ -38,6 +38,9 @@ const HEADER_TO_FIELD = {
   'stage': 'funnelStage',
   'owner': 'owner',
   'lead owner': 'owner',
+  'sourced by': 'sourcedBy',
+  'sourcedby': 'sourcedBy',
+  'sourced by (email)': 'sourcedBy',
   'source / campaign detail': 'sourceCampaignDetail',
   'source/campaign detail': 'sourceCampaignDetail',
   'campaign detail': 'sourceCampaignDetail',
@@ -149,8 +152,8 @@ function BulkImportModal({ onClose, onDone }) {
 
   const sample = [
     SAMPLE_HEADERS.join(','),
-    '"Jane Doe","jane@example.com","555-0100","Acme Corp","LinkedIn","New Lead","","Q3 LinkedIn campaign","Met at webinar"',
-    '"Ravi Kumar","ravi@example.in","555-0111","Globex","Referral","Contacted","","Partner intro","Wants a demo"',
+    '"Jane Doe","jane@example.com","555-0100","Acme Corp","LinkedIn","New Lead","","","Q3 LinkedIn campaign","Met at webinar"',
+    '"Ravi Kumar","ravi@example.in","555-0111","Globex","Referral","Contacted","","","Partner intro","Wants a demo"',
   ].join('\n');
 
   const onFile = (e) => {
@@ -193,6 +196,13 @@ function BulkImportModal({ onClose, onDone }) {
           Upload a CSV with a header row. Only <strong>Full Name</strong> is required; other
           columns are optional. New company names are created automatically.
         </p>
+        <RoleGate allow={['admin', 'superadmin']}>
+          <p className="muted">
+            The <strong>Sourced By</strong> column (an email) credits who sourced each lead in
+            Performance — leave it blank to credit yourself. <strong>Owner</strong> sets who the
+            lead is assigned to.
+          </p>
+        </RoleGate>
 
         <button className="secondary" onClick={() => downloadCsv('productnova-leads-sample.csv', sample)}>
           Download sample CSV

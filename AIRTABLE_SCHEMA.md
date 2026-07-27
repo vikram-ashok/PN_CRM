@@ -30,7 +30,9 @@ in `netlify/functions/` to match.
 | Lead Source | Single select | LinkedIn, Referral, Webinar, Website Form, Cold Outreach, Event, Other |
 | Source / Campaign Detail | Single line text | free text detail |
 | Funnel Stage | Single select | New Lead, Contacted, Qualified, Demo / Meeting, Proposal, Negotiation, Closed Won, Closed Lost, Nurture |
-| Owner | Single line text | stores the assigned team member's **email** |
+| Owner | Single line text | stores the assigned team member's **email**; reassignable |
+| Sourced By | Single line text | email of whoever **sourced** (created/imported) the lead. Stamped server-side on create & import; **does not change** when Owner is reassigned. Admin/Super Admin can correct it from Lead Detail (Team cannot). Credited in the "Leads sourced" performance metric. |
+| Import Batch ID | Single line text | set only on leads created via **Bulk Import**; matches a row in the Import Batches table so a whole import can be reviewed/bulk-deleted. Blank for individually-created leads. |
 | Notes | Long text | |
 | Created Date | Date/time | set by the app (leads-create.js) on record creation |
 | Last Activity Date | Date/time | |
@@ -68,12 +70,26 @@ in `netlify/functions/` to match.
 | LinkedIn Event | Single select | Request Sent, Accepted, Message Sent, Read, Replied — set on `LinkedIn` activities. Each step is its own entry (create-only), same pattern as Email |
 | Message Content | Long text | body of the Email/LinkedIn message that was sent, or the reply text on a "Replied" entry |
 
+### Import Batches — `tblwTwWLKG0dx7OsQ`
+One record per **Bulk Import** of leads, so an Admin can see the list of
+imports and delete a bad batch. Written by `leads-import.js`; read by
+`import-batches-list.js`; reconciled (count updated, or record removed when the
+batch is emptied) by `leads-bulk-delete.js`.
+
+| Field | Type | Notes |
+|---|---|---|
+| Batch ID | Single line text (primary) | matches `Import Batch ID` stamped on each imported lead |
+| Imported By | Single line text | email of the user who ran the import |
+| Imported At | Date/time | when the import ran |
+| Lead Count | Number (precision 0) | leads created in this import; decremented as leads are bulk-deleted |
+| File Name | Single line text | original CSV filename, for reference |
+
 ### Performance metrics (Team Performance page)
 
 The `/performance` page aggregates per team member (by `Owner` on Leads and
 `Logged By` on Activities) over a selectable day/week/month window:
 
-1. **Leads sourced** — Leads with `Created Date` in range · target = 30 × working days (Mon–Fri)
+1. **Leads sourced** — Leads with `Created Date` in range, counted by **`Sourced By`** (falls back to `Owner` for legacy leads with no Sourced By) · target = 30 × working days (Mon–Fri)
 2. **Appointments set** — Activities of type `Meeting` · target = monthly 10 pro-rated by working days (~2–3/week)
 3. **Calls made** — Activities of type `Call` · target = 30 × working days (call each sourced lead)
 4. **Calls connected** — `Call` + Call Outcome = Connected

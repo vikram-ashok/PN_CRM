@@ -15,6 +15,7 @@ import AddLead from './pages/AddLead.jsx';
 import LeadsList from './pages/LeadsList.jsx';
 import LeadDetail from './pages/LeadDetail.jsx';
 import ImportCalls from './pages/ImportCalls.jsx';
+import ImportBatches from './pages/ImportBatches.jsx';
 import UserManagement from './pages/UserManagement.jsx';
 
 function AppRoutes() {
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="/leads/new" element={<ProtectedRoute><AddLead /></ProtectedRoute>} />
         <Route path="/leads/:id" element={<ProtectedRoute><LeadDetail /></ProtectedRoute>} />
         <Route path="/import-calls" element={<ProtectedRoute><ImportCalls /></ProtectedRoute>} />
+        <Route path="/import-batches" element={<ProtectedRoute><ImportBatches /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

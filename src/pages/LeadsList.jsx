@@ -175,7 +175,7 @@ function BulkImportModal({ onClose, onDone }) {
     if (!rows) return;
     setImporting(true);
     try {
-      const res = await api.importLeads(rows);
+      const res = await api.importLeads(rows, fileName);
       setResult(res);
       if (res.created > 0) onDone();
     } catch (err) {
@@ -287,6 +287,7 @@ export default function LeadsList() {
       const hay = [
         l.fields['Full Name'], companyName(l), l.fields['Email'], l.fields['Phone'],
         l.fields['Lead Source'], ownerName(l.fields['Owner']), l.fields['Funnel Stage'],
+        ownerName(l.fields['Sourced By']),
       ].join(' ').toLowerCase();
       return hay.includes(q);
     });
@@ -326,6 +327,7 @@ export default function LeadsList() {
                 <th>Lead Source</th>
                 <th>Funnel Stage</th>
                 <th>Lead Owner</th>
+                <th>Sourced By</th>
                 <th>Date Added</th>
                 <RoleGate allow={['admin', 'superadmin']}><th></th></RoleGate>
               </tr>
@@ -340,6 +342,7 @@ export default function LeadsList() {
                   <td>{lead.fields['Lead Source'] || '-'}</td>
                   <td>{lead.fields['Funnel Stage'] || '-'}</td>
                   <td>{ownerName(lead.fields['Owner']) || 'Unassigned'}</td>
+                  <td>{ownerName(lead.fields['Sourced By']) || '-'}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     {(() => {
                       const { when, age } = formatDateAdded(lead.fields['Created Date']);
@@ -361,7 +364,7 @@ export default function LeadsList() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={9} className="muted" style={{ textAlign: 'center', padding: '1.5rem' }}>
+                <tr><td colSpan={10} className="muted" style={{ textAlign: 'center', padding: '1.5rem' }}>
                   {search ? 'No leads match your search.' : 'No leads yet.'}
                 </td></tr>
               )}

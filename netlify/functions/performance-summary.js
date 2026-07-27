@@ -143,11 +143,15 @@ exports.handler = async (event, context) => {
       return members[email];
     };
 
-    // Leads sourced (by Owner, Created Date in range)
+    // Leads sourced (by Sourced By, Created Date in range). "Sourced By"
+    // records who actually brought the lead in and does NOT move when a lead
+    // is reassigned, so credit stays put. Legacy leads created before this
+    // field existed have no "Sourced By" - fall back to Owner for those so
+    // historical numbers don't silently drop.
     leads.forEach((r) => {
       const f = r.fields || {};
       if (!inRange(f['Created Date'])) return;
-      const m = ensure(f['Owner']);
+      const m = ensure(f['Sourced By'] || f['Owner']);
       if (m) m.leadsSourced += 1;
     });
 

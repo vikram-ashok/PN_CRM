@@ -15,6 +15,7 @@ const TABLES = {
   LEADS: 'tbljZ6aZwreXPq755',
   DEALS: 'tbleSSVgY3V2dYfVg',
   ACTIVITIES: 'tblCLZiLIDst1DGLQ',
+  IMPORT_BATCHES: 'tblwTwWLKG0dx7OsQ',
 };
 
 function getBaseId() {
@@ -151,6 +152,40 @@ async function deleteRecord(tableId, recordId) {
   return airtableRequest(tableId, { method: 'DELETE', path: `/${recordId}` });
 }
 
+// Delete many records, respecting Airtable's cap of 10 record ids per DELETE
+// request. Returns { deleted: [...ids], failed: [{ id, error }] } so a caller
+// can report partial success rather than aborting the whole batch on one bad
+// id. Chunks are processed sequentially to stay under Airtable's rate limit.
+async function deleteRecords(tableId, recordIds) {
+  const ids = (recordIds || []).filter(Boolean);
+  const deleted = [];
+  const failed = [];
+  for (let i = 0; i < ids.length; i += 10) {
+    const chunk = ids.slice(i, i + 10);
+    // records[]=id1&records[]=id2... — URLSearchParams handles repeated keys.
+    const params = new URLSearchParams();
+    chunk.forEach((id) => params.append('records[]', id));
+    try {
+      const data = await airtableRequest(tableId, { method: 'DELETE', path: `?${params.toString()}` });
+      (data.records || []).forEach((r) => deleted.push(r.id));
+    } catch (err) {
+      // Fall back to per-record deletes for this chunk so one bad id doesn't
+      // sink the other nine.
+      // eslint-disable-next-line no-await-in-loop
+      for (const id of chunk) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await airtableRequest(tableId, { method: 'DELETE', path: `/${id}` });
+          deleted.push(id);
+        } catch (e) {
+          failed.push({ id, error: e.message });
+        }
+      }
+    }
+  }
+  return { deleted, failed };
+}
+
 module.exports = {
   TABLES,
   listRecords,
@@ -161,4 +196,5 @@ module.exports = {
   createRecord,
   updateRecord,
   deleteRecord,
+  deleteRecords,
 };

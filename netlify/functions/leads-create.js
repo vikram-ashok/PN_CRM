@@ -71,6 +71,11 @@ exports.handler = async (event, context) => {
     // in leads-update.js).
     'Funnel Stage': funnelStage || 'New Lead',
     'Owner': ownerEmail,
+    // Who sourced this lead. Defaults to the creator; an Admin can reassign
+    // it later. Unlike Owner it is NOT changed when a lead is reassigned, so
+    // sourcing credit (Performance "Leads sourced") stays with whoever brought
+    // the lead in.
+    'Sourced By': callerEmail,
     'Notes': notes || undefined,
     'Created Date': new Date().toISOString(),
   };

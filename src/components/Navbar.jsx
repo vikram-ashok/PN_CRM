@@ -32,6 +32,9 @@ export default function Navbar() {
         <RoleGate allow={['admin', 'superadmin']}>
           <NavLink to="/import-calls">Import Calls</NavLink>
         </RoleGate>
+        <RoleGate allow={['admin', 'superadmin']}>
+          <NavLink to="/import-batches">Import Batches</NavLink>
+        </RoleGate>
         <RoleGate allow={['superadmin']}>
           <NavLink to="/users">Manage Users</NavLink>
         </RoleGate>

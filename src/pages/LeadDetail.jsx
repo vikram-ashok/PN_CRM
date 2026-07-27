@@ -62,6 +62,7 @@ export default function LeadDetail() {
           leadSource: found.fields['Lead Source'] || '',
           funnelStage: found.fields['Funnel Stage'] || FUNNEL_STAGES[0],
           owner: found.fields['Owner'] || '',
+          sourcedBy: found.fields['Sourced By'] || '',
           notes: found.fields['Notes'] || '',
           lostReason: found.fields['Lost Reason'] || '',
           nextContactDate: found.fields['Next Contact Date'] || '',
@@ -214,7 +215,8 @@ export default function LeadDetail() {
           <div className="card" style={{ background: 'var(--pn-bg, #f7f7f8)', marginBottom: '1rem' }}>
             <p><strong>Company:</strong> {companyName || '-'}</p>
             <p><strong>Lead Source:</strong> {lead.fields['Lead Source'] || '-'}</p>
-            <p style={{ margin: 0 }}><strong>Owner:</strong> {lead.fields['Owner'] || '-'}</p>
+            <p><strong>Owner:</strong> {lead.fields['Owner'] || '-'}</p>
+            <p style={{ margin: 0 }}><strong>Sourced By:</strong> {lead.fields['Sourced By'] || '-'}</p>
           </div>
           <button type="submit">Save Changes</button>
         </form>
@@ -251,6 +253,20 @@ export default function LeadDetail() {
                 <option key={m.email} value={m.email}>{m.name} ({m.email})</option>
               ))}
             </select>
+          </div>
+          <div className="form-field">
+            <label>Sourced By</label>
+            <select value={editForm.sourcedBy} onChange={(e) => setEditForm({ ...editForm, sourcedBy: e.target.value })}>
+              <option value="">-- Not set --</option>
+              {/* Keep the current sourcer selectable even if not in the roster. */}
+              {editForm.sourcedBy && !members.some((m) => m.email === editForm.sourcedBy) && (
+                <option value={editForm.sourcedBy}>{editForm.sourcedBy}</option>
+              )}
+              {members.map((m) => (
+                <option key={m.email} value={m.email}>{m.name} ({m.email})</option>
+              ))}
+            </select>
+            <p className="muted">Who sourced this lead. Unlike Owner, this doesn't change on reassignment - it's what the Performance "Leads sourced" metric counts. Correct it here if a lead was imported/created under the wrong person.</p>
           </div>
           <div className="form-field">
             <label>Lost Reason</label>

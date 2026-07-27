@@ -66,8 +66,14 @@ export const api = {
   // Team members (email/name/role) - all roles; for owner pickers & name display
   listMembers: () => request('members-list'),
 
-  // Bulk import leads from parsed CSV rows
-  importLeads: (rows) => request('leads-import', { method: 'POST', body: { rows } }),
+  // Bulk import leads from parsed CSV rows (fileName is recorded on the batch)
+  importLeads: (rows, fileName) => request('leads-import', { method: 'POST', body: { rows, fileName } }),
+
+  // Import batches (Admin/Super Admin): list imports, list one batch's leads,
+  // and bulk-delete selected leads from a batch.
+  listImportBatches: () => request('import-batches-list'),
+  listBatchLeads: (batchId) => request('leads-list', { query: { batchId } }),
+  bulkDeleteLeads: (recordIds, batchId) => request('leads-bulk-delete', { method: 'POST', body: { recordIds, batchId } }),
 
   // Bulk import call activities from a parsed dialer report (Admin/Super Admin)
   importCalls: (calls) => request('calls-import', { method: 'POST', body: { calls } }),

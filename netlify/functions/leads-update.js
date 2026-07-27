@@ -89,6 +89,10 @@ exports.handler = async (event, context) => {
     sourceCampaignDetail: 'Source / Campaign Detail',
     funnelStage: 'Funnel Stage',
     owner: 'Owner',
+    // Sourced By is admin-editable only: it is deliberately absent from
+    // TEAM_EDITABLE_KEYS, so a Team caller who sends it is rejected (403) by
+    // the whitelist check above before we ever reach this map.
+    sourcedBy: 'Sourced By',
     notes: 'Notes',
     lastActivityDate: 'Last Activity Date',
     lostReason: 'Lost Reason',

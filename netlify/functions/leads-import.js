@@ -2,7 +2,8 @@
 //
 // POST /.netlify/functions/leads-import
 // Body: { rows: [ { fullName, email, phone, companyName, leadSource,
-//                    sourceCampaignDetail, funnelStage, owner, notes }, ... ],
+//                    sourceCampaignDetail, funnelStage, owner, sourcedBy,
+//                    notes }, ... ],
 //         fileName?: string }
 //
 // Bulk-creates leads from a parsed CSV. Available to ALL authenticated roles
@@ -90,6 +91,10 @@ exports.handler = async (event, context) => {
 
       const stage = VALID_STAGES.includes(r.funnelStage) ? r.funnelStage : 'New Lead';
       const ownerEmail = role === 'team' ? callerEmail : ((r.owner || '').trim() || callerEmail);
+      // Sourced By follows the same rule as Owner: an Admin/Super Admin may
+      // credit any sourcer per row via the CSV (blank => the importer); a Team
+      // member's imports are always sourced by themselves.
+      const sourcedByEmail = role === 'team' ? callerEmail : ((r.sourcedBy || '').trim() || callerEmail);
 
       const fields = {
         'Full Name': fullName,
@@ -99,7 +104,7 @@ exports.handler = async (event, context) => {
         'Source / Campaign Detail': (r.sourceCampaignDetail || '').trim() || undefined,
         'Funnel Stage': stage,
         'Owner': ownerEmail,
-        'Sourced By': callerEmail,
+        'Sourced By': sourcedByEmail,
         'Import Batch ID': batchId,
         'Notes': (r.notes || '').trim() || undefined,
         'Created Date': new Date().toISOString(),

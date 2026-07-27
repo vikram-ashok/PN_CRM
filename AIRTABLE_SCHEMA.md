@@ -31,7 +31,7 @@ in `netlify/functions/` to match.
 | Source / Campaign Detail | Single line text | free text detail |
 | Funnel Stage | Single select | New Lead, Contacted, Qualified, Demo / Meeting, Proposal, Negotiation, Closed Won, Closed Lost, Nurture |
 | Owner | Single line text | stores the assigned team member's **email**; reassignable |
-| Sourced By | Single line text | email of whoever **sourced** (created/imported) the lead. Stamped server-side on create & import; **does not change** when Owner is reassigned. Admin/Super Admin can correct it from Lead Detail (Team cannot). Credited in the "Leads sourced" performance metric. |
+| Sourced By | Single line text | email of whoever **sourced** (created/imported) the lead. Stamped server-side on create & import; **does not change** when Owner is reassigned. Admins may set it per-row via the Bulk Import CSV's optional `Sourced By` column (blank => the importer); a Team member's imports are always sourced by themselves. Admin/Super Admin can also correct it from Lead Detail (Team cannot). Credited in the "Leads sourced" performance metric. |
 | Import Batch ID | Single line text | set only on leads created via **Bulk Import**; matches a row in the Import Batches table so a whole import can be reviewed/bulk-deleted. Blank for individually-created leads. |
 | Notes | Long text | |
 | Created Date | Date/time | set by the app (leads-create.js) on record creation |

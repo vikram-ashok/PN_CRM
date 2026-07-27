@@ -60,8 +60,19 @@ export function toIsoish(d) {
   return s.includes(' ') ? s.replace(' ', 'T') : s;
 }
 
+// How many DNP attempts before a lead is treated as Cold (mirrors the manual
+// DNP flow in LeadDetail). 5 unanswered calls => DNP 5; a 6th (or more) in the
+// report means the number was chased past the ladder => mark the lead Cold.
+export const DNP_MAX = 5;
+
 // Parse the report and collapse to one entry per dialed number.
-// Returns: [{ normalized, displayNumber, attempts, outcome, duration, date, statuses }]
+// Returns: [{ normalized, displayNumber, attempts, outcome, duration, date,
+//             statuses, dnpAttempt, markCold }]
+// dnpAttempt: for a number that never connected, the DNP level = the count of
+//   calls to it, capped at DNP_MAX (2 calls => DNP 2, etc.). null if connected
+//   or if the lead is being marked Cold instead.
+// markCold: true when a number never connected and was called more than
+//   DNP_MAX times.
 export function buildCallGroups(text) {
   const rows = parseCsv(text);
   if (rows.length < 2) return [];
@@ -99,15 +110,22 @@ export function buildCallGroups(text) {
     if (date && (!g.latestDate || new Date(date) > new Date(g.latestDate))) g.latestDate = date;
   }
 
-  return [...groups.values()].map((g) => ({
-    normalized: g.normalized,
-    displayNumber: g.displayNumber,
-    attempts: g.attempts,
-    outcome: g.connected ? 'Connected' : 'DNP',
-    duration: g.connected ? g.duration : 0,
-    date: g.connected ? (g.connectedDate || g.latestDate) : g.latestDate,
-    statuses: g.statuses,
-  }));
+  return [...groups.values()].map((g) => {
+    const isDnp = !g.connected;
+    const markCold = isDnp && g.attempts > DNP_MAX;
+    return {
+      normalized: g.normalized,
+      displayNumber: g.displayNumber,
+      attempts: g.attempts,
+      outcome: g.connected ? 'Connected' : 'DNP',
+      duration: g.connected ? g.duration : 0,
+      date: g.connected ? (g.connectedDate || g.latestDate) : g.latestDate,
+      statuses: g.statuses,
+      // DNP level from the number of calls (capped); null when connected or cold.
+      dnpAttempt: isDnp && !markCold ? Math.min(g.attempts, DNP_MAX) : null,
+      markCold,
+    };
+  });
 }
 
 // Build a normalized-phone -> [lead] index from lead records shaped as
@@ -144,5 +162,7 @@ export function summarize(group) {
       (group.attempts > 1 ? `, ${group.attempts} attempts` : '');
   }
   const statusList = Object.keys(group.statuses || {}).join(', ').toLowerCase() || 'no connect';
-  return `Imported call — no connect (${statusList}); ${group.attempts} attempt${group.attempts > 1 ? 's' : ''}`;
+  const base = `Imported call — no connect (${statusList}); ${group.attempts} attempt${group.attempts > 1 ? 's' : ''}`;
+  if (group.markCold) return `${base} → marked Cold (past DNP ${DNP_MAX})`;
+  return `${base} → DNP ${group.dnpAttempt}`;
 }

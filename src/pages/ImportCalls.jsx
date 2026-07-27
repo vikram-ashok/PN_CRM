@@ -20,6 +20,16 @@ function fmtDuration(s) {
   return `${Math.floor(n / 60)}m ${n % 60}s`;
 }
 
+// Label for a group's outcome, including the DNP level derived from how many
+// times the number was dialed in the report (and the Cold flip past the ladder).
+function OutcomeTag({ group }) {
+  if (group.outcome === 'Connected') return <span className="activity-tag">Connected</span>;
+  if (group.markCold) {
+    return <span className="activity-tag" title={`${group.attempts} calls — past the DNP ladder`} style={{ background: 'var(--pn-danger)', color: '#fff' }}>DNP {group.attempts} → Cold</span>;
+  }
+  return <span className="activity-tag" title={`${group.attempts} call(s) in the report`}>DNP {group.dnpAttempt}</span>;
+}
+
 export default function ImportCalls() {
   const { canEdit } = useAuth(); // admin or superadmin
   const navigate = useNavigate();
@@ -111,6 +121,8 @@ export default function ImportCalls() {
           date: toIsoish(group.date),
           summary: summarize(group),
           loggedBy: lead.owner || '',
+          dnpAttempt: group.dnpAttempt,
+          markCold: group.markCold,
         });
       });
 
@@ -126,6 +138,8 @@ export default function ImportCalls() {
             date: toIsoish(g.date),
             summary: summarize(g),
             loggedBy: (lead && lead.owner) || '',
+            dnpAttempt: g.dnpAttempt,
+            markCold: g.markCold,
           });
         } else if (r.action === 'new') {
           const name = (r.name || '').trim();
@@ -147,6 +161,8 @@ export default function ImportCalls() {
             date: toIsoish(g.date),
             summary: summarize(g),
             loggedBy: owner || '',
+            dnpAttempt: g.dnpAttempt,
+            markCold: g.markCold,
           });
         }
         // action === 'skip' -> do nothing
@@ -175,7 +191,9 @@ export default function ImportCalls() {
       <p className="muted" style={{ maxWidth: 720 }}>
         Upload a dialer call report (CSV). Each dialed number is matched to a lead by phone;
         connected calls are logged with their duration, and calls that didn't connect are logged as DNP.
-        Numbers that don't match any lead appear below for you to attach or add.
+        The <strong>DNP level</strong> reflects how many times the number was dialed in the report
+        (2 calls → DNP 2, and so on); a number dialed more than 5 times without connecting marks the
+        lead <strong>Cold</strong>. Numbers that don't match any lead appear below for you to attach or add.
       </p>
 
       {parseError && <div className="error-banner">{parseError}</div>}
@@ -192,6 +210,7 @@ export default function ImportCalls() {
         <div className="card" style={{ borderLeft: '4px solid var(--pn-success)', marginTop: '1rem' }}>
           <strong>Import complete.</strong> Logged {result.created} call{result.created === 1 ? '' : 's'},
           updated {result.leadsUpdated} lead{result.leadsUpdated === 1 ? '' : 's'}.
+          {result.coldMarked > 0 && <span> {result.coldMarked} lead{result.coldMarked === 1 ? '' : 's'} marked Cold.</span>}
           {result.failed > 0 && <span className="perf-miss"> {result.failed} failed.</span>}
           <div style={{ marginTop: '0.6rem' }}>
             <button type="button" onClick={() => navigate('/leads')}>Go to Leads</button>
@@ -225,9 +244,7 @@ export default function ImportCalls() {
                       <td>{group.displayNumber}</td>
                       <td>{lead.name}{ambiguous && <span className="activity-tag" title="More than one lead has this number; the first is used.">multiple</span>}</td>
                       <td className="muted">{lead.owner || '—'}</td>
-                      <td>{group.outcome === 'Connected'
-                        ? <span className="activity-tag">Connected</span>
-                        : <span className="activity-tag">DNP</span>}</td>
+                      <td><OutcomeTag group={group} /></td>
                       <td>{group.outcome === 'Connected' ? fmtDuration(group.duration) : '—'}</td>
                       <td className="muted">{group.date || '—'}</td>
                     </tr>
@@ -255,7 +272,7 @@ export default function ImportCalls() {
                       return (
                         <tr key={g.normalized}>
                           <td>{g.displayNumber}</td>
-                          <td>{g.outcome === 'Connected' ? 'Connected' : 'DNP'}</td>
+                          <td><OutcomeTag group={g} /></td>
                           <td>{g.outcome === 'Connected' ? fmtDuration(g.duration) : '—'}</td>
                           <td>
                             <select value={r.action} onChange={(e) => setRes(g.normalized, { action: e.target.value })}>

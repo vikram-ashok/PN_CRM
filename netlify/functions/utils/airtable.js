@@ -139,12 +139,18 @@ async function createRecord(tableId, fields, { typecast = false } = {}) {
   return airtableRequest(tableId, { method: 'POST', body });
 }
 
-async function updateRecord(tableId, recordId, fields) {
+async function updateRecord(tableId, recordId, fields, { typecast = false } = {}) {
   // PATCH only touches the fields provided - it does not clear other fields.
+  // typecast:true lets Airtable auto-create a missing single-select option from
+  // a string value (used so a new "Cold" Funnel Stage registers on first use,
+  // same trick as the "LinkedIn" Activity Type). Safe because the app only
+  // sends single-select values from its own fixed constants.
+  const body = { fields };
+  if (typecast) body.typecast = true;
   return airtableRequest(tableId, {
     method: 'PATCH',
     path: `/${recordId}`,
-    body: { fields },
+    body,
   });
 }
 

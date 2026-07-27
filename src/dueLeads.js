@@ -6,7 +6,10 @@
 // local YYYY-MM-DD strings so the queue matches the user's own calendar day
 // (not UTC).
 
-export const CLOSED_STAGES = ['Closed Won', 'Closed Lost'];
+// Stages that are excluded from the callback queue (no "next contact" chasing):
+// the two closed stages, plus Cold (a lead that went unreachable after the DNP
+// sequence - revive it by moving it back to an active stage).
+export const CLOSED_STAGES = ['Closed Won', 'Closed Lost', 'Cold'];
 
 // Local calendar date as YYYY-MM-DD (not UTC - avoids the queue flipping over
 // at the wrong hour for non-UTC users).

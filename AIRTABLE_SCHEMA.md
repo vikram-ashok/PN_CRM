@@ -29,15 +29,15 @@ in `netlify/functions/` to match.
 | Company | Link to Companies | single link |
 | Lead Source | Single select | LinkedIn, Referral, Webinar, Website Form, Cold Outreach, Event, Other |
 | Source / Campaign Detail | Single line text | free text detail |
-| Funnel Stage | Single select | New Lead, Contacted, Qualified, Demo / Meeting, Proposal, Negotiation, Closed Won, Closed Lost, Nurture |
+| Funnel Stage | Single select | New Lead, Contacted, Qualified, Demo / Meeting, Proposal, Negotiation, Closed Won, Closed Lost, Nurture, **Cold**. "Cold" is set automatically when a lead is unreachable after 5 DNPs + a final attempt (see DNP flow below); it registers on first use via `typecast:true` on lead create/update. Excluded from the callback (Today) queue. |
 | Owner | Single line text | stores the assigned team member's **email**; reassignable |
 | Sourced By | Single line text | email of whoever **sourced** (created/imported) the lead. Stamped server-side on create & import; **does not change** when Owner is reassigned. Admins may set it per-row via the Bulk Import CSV's optional `Sourced By` column (blank => the importer); a Team member's imports are always sourced by themselves. Admin/Super Admin can also correct it from Lead Detail (Team cannot). Credited in the "Leads sourced" performance metric. |
 | Import Batch ID | Single line text | set only on leads created via **Bulk Import**; matches a row in the Import Batches table so a whole import can be reviewed/bulk-deleted. Blank for individually-created leads. |
 | Notes | Long text | |
-| Created Date | Date/time | set by the app (leads-create.js) on record creation |
-| Last Activity Date | Date/time | |
+| Created Date | Date/time | set by the app on record creation. Bulk Import can back-date this via the CSV's optional `Sourced Date` column (the date the lead was actually sourced), so "Date Added" and the Leads-sourced metric reflect the true date. |
+| Last Activity Date | Date/time | the lead's last-contact date. Bumped by `activities-create.js` to each logged activity's date (and by the Import Calls feature). Shown as "Last Contact" on the Leads table + Lead Detail. |
 | Lost Reason | Single line text | |
-| Next Contact Date | Date (YYYY-MM-DD) | next day the owner should contact this lead (e.g. a requested callback); drives the Today queue |
+| Next Contact Date | Date (YYYY-MM-DD) | next day the owner should contact this lead (e.g. a requested callback); drives the Today queue. Auto-set to **tomorrow** each time a DNP call is logged (see DNP flow below). Shown as "Next Contact" on the Leads table (Overdue in red if past, highlighted if today). |
 | Next Contact Note | Long text | short note on the next contact, e.g. "call back re pricing" |
 | LinkedIn URL | URL | the lead's LinkedIn profile, for outreach tracking |
 | Deals | Link to Deals | auto-populated from Deals.Linked Lead |
@@ -129,6 +129,19 @@ Nurture into an active stage at any time from the Lead Detail edit form —
 by Admin/Super Admin on any lead, or by a Team member on a lead they own
 (as of 22 Jul 2026 Team may edit Funnel Stage / Notes / Email / Phone on
 their own leads; see SESSION_LOG_2026-07-22.md).
+
+## DNP → next-day callback → Cold flow
+
+Driven from the Lead Detail activity form (`src/pages/LeadDetail.jsx`):
+
+- Logging a **Call** with outcome **DNP** auto-sets the lead's `Next Contact
+  Date` to **tomorrow** (Asia/Kolkata) and stamps a "retry after DNP n" note.
+- This repeats for DNP 1 → 5 (`DNP Attempt` capped at 5).
+- The attempt *after* DNP 5 is the **final attempt**: instead of recording a
+  DNP 6, the lead's Funnel Stage is set to **Cold** and its Next Contact Date is
+  cleared (it drops out of the Today queue). A Connected call at any point
+  resets the DNP counter.
+- Reviving a Cold lead is just moving it back to an active stage.
 
 ## Recreating this schema from scratch (if you ever need a second base)
 

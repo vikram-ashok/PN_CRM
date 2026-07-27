@@ -3,8 +3,11 @@
 // POST /.netlify/functions/leads-import
 // Body: { rows: [ { fullName, email, phone, companyName, leadSource,
 //                    sourceCampaignDetail, funnelStage, owner, sourcedBy,
-//                    notes }, ... ],
+//                    sourcedDate, notes }, ... ],
 //         fileName?: string }
+//
+// `sourcedDate` (optional) is the date the lead was actually sourced; it is
+// used as the lead's Created Date (blank/unparseable => the import time).
 //
 // Bulk-creates leads from a parsed CSV. Available to ALL authenticated roles
 // (Team included). Owner rules mirror leads-create.js: a Team member always
@@ -23,9 +26,23 @@ const { requireRole, getUser, getUserRole } = require('./utils/auth');
 const { TABLES, createRecord, loadCompanyMap, findOrCreateCompany } = require('./utils/airtable');
 
 const MAX_ROWS = 1000;
+
+// Parse an optional per-row "sourced date" into an ISO timestamp for the lead's
+// Created Date. Accepts YYYY-MM-DD (preferred) or anything Date can parse
+// (e.g. DD/MM/YYYY, M/D/YYYY). A date-only value is anchored at 12:00 UTC so it
+// can't slip to the previous/next calendar day when displayed in IST. Returns
+// undefined for blank/garbage, so the caller falls back to "now".
+function parseSourcedDate(v) {
+  const s = (v || '').toString().trim();
+  if (!s) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T12:00:00.000Z`;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return `${d.toISOString().slice(0, 10)}T12:00:00.000Z`;
+}
 const VALID_STAGES = [
   'New Lead', 'Contacted', 'Qualified', 'Demo / Meeting', 'Proposal',
-  'Negotiation', 'Closed Won', 'Closed Lost', 'Nurture',
+  'Negotiation', 'Closed Won', 'Closed Lost', 'Nurture', 'Cold',
 ];
 
 exports.handler = async (event, context) => {
@@ -107,12 +124,15 @@ exports.handler = async (event, context) => {
         'Sourced By': sourcedByEmail,
         'Import Batch ID': batchId,
         'Notes': (r.notes || '').trim() || undefined,
-        'Created Date': new Date().toISOString(),
+        // The CSV can carry the date the lead was actually sourced; that
+        // becomes its Created Date (so "Date Added" and the Leads-sourced
+        // metric reflect the true date). Blank/unparseable => import time.
+        'Created Date': parseSourcedDate(r.sourcedDate) || new Date().toISOString(),
       };
       if (linkedCompanyId) fields['Company'] = [linkedCompanyId];
       Object.keys(fields).forEach((k) => fields[k] === undefined && delete fields[k]);
 
-      await createRecord(TABLES.LEADS, fields);
+      await createRecord(TABLES.LEADS, fields, { typecast: true });
       created += 1;
     } catch (err) {
       errors.push({ row: rowNum, error: err.message });

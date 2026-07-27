@@ -6,7 +6,7 @@
 // "Logged By" is stamped from the verified Identity user, not client input.
 
 const { requireRole, getUser } = require('./utils/auth');
-const { TABLES, createRecord } = require('./utils/airtable');
+const { TABLES, createRecord, updateRecord } = require('./utils/airtable');
 
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') {
@@ -72,6 +72,18 @@ exports.handler = async (event, context) => {
   try {
     // typecast so a new "LinkedIn" Activity Type option registers on first use.
     const record = await createRecord(TABLES.ACTIVITIES, fields, { typecast: true });
+
+    // Keep the lead's "Last Activity Date" (its last-contact date) current.
+    // Best-effort: the activity is already saved, so a failure here must not
+    // fail the request. Uses this activity's date as the latest touch.
+    if (leadId) {
+      try {
+        await updateRecord(TABLES.LEADS, leadId, { 'Last Activity Date': fields['Date'] });
+      } catch (e) {
+        // ignore - lead bump is non-critical
+      }
+    }
+
     return { statusCode: 201, body: JSON.stringify(record) };
   } catch (err) {
     return { statusCode: err.statusCode || 500, body: JSON.stringify({ error: err.message }) };

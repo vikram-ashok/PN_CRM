@@ -118,7 +118,8 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const record = await updateRecord(TABLES.LEADS, recordId, fields);
+    // typecast so a new Funnel Stage option (e.g. "Cold") registers on first use.
+    const record = await updateRecord(TABLES.LEADS, recordId, fields, { typecast: true });
     return { statusCode: 200, body: JSON.stringify(record) };
   } catch (err) {
     return { statusCode: err.statusCode || 500, body: JSON.stringify({ error: err.message }) };

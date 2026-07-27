@@ -88,7 +88,8 @@ exports.handler = async (event, context) => {
   Object.keys(fields).forEach((k) => fields[k] === undefined && delete fields[k]);
 
   try {
-    const record = await createRecord(TABLES.LEADS, fields);
+    // typecast so a new Funnel Stage option (e.g. "Cold") registers on first use.
+    const record = await createRecord(TABLES.LEADS, fields, { typecast: true });
     return { statusCode: 201, body: JSON.stringify(record) };
   } catch (err) {
     return { statusCode: err.statusCode || 500, body: JSON.stringify({ error: err.message }) };

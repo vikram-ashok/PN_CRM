@@ -20,6 +20,7 @@ const STAGE_ORDER = [
   'Closed Won',
   'Closed Lost',
   'Nurture',
+  'Cold',
 ];
 
 exports.handler = async (event, context) => {

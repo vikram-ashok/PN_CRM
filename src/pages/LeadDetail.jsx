@@ -16,6 +16,19 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api, FUNNEL_STAGES, ACTIVITY_TYPES, CALL_OUTCOMES, EMAIL_EVENTS, LINKEDIN_EVENTS } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import RoleGate from '../components/RoleGate.jsx';
+import { dueStatus } from '../dueLeads.js';
+
+// Tomorrow's date (YYYY-MM-DD) in the team's timezone (IST) - used to
+// auto-schedule the next-day callback after an unanswered (DNP) call.
+function tomorrowIST() {
+  const t = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(t);
+}
+
+// How many DNPs cap before the lead is auto-marked Cold. After this many
+// unanswered calls, one final attempt (the next DNP) flips the lead to Cold
+// instead of recording a further DNP.
+const DNP_MAX = 5;
 
 export default function LeadDetail() {
   const { id } = useParams();
@@ -45,6 +58,21 @@ export default function LeadDetail() {
       else if (o === 'DNP') n = Math.min(n + 1, 5);
     });
     return Math.min(n + 1, 5);
+  })();
+
+  // Uncapped count of consecutive DNPs since the last Connected call. Drives
+  // the auto next-day callback and the "go Cold on the final attempt" rule.
+  const priorDnps = (() => {
+    const calls = activities
+      .filter((a) => a.fields['Activity Type'] === 'Call')
+      .sort((a, b) => new Date(a.fields['Date'] || 0) - new Date(b.fields['Date'] || 0));
+    let n = 0;
+    calls.forEach((c) => {
+      const o = c.fields['Call Outcome'];
+      if (o === 'Connected') n = 0;
+      else if (o === 'DNP') n += 1;
+    });
+    return n;
   })();
 
   const load = useCallback(() => {
@@ -130,14 +158,37 @@ export default function LeadDetail() {
       else if (newActivity.activityType === 'LinkedIn') summary = `LinkedIn: ${newActivity.linkedinEvent}`;
       else return;
     }
-    // For an unanswered call, default the attempt to the suggested next level
-    // if the rep didn't pick one explicitly.
-    const dnpAttempt =
-      newActivity.activityType === 'Call' && newActivity.callOutcome === 'DNP'
-        ? Number(newActivity.dnpAttempt) || suggestedDnp
-        : undefined;
+    const isDnp = newActivity.activityType === 'Call' && newActivity.callOutcome === 'DNP';
+    // This DNP would be attempt (priorDnps + 1). Once we already have DNP_MAX
+    // unanswered calls, the next one is the "final attempt" and flips the lead
+    // to Cold instead of being recorded as a further DNP.
+    const goingCold = isDnp && priorDnps >= DNP_MAX;
+    // For an unanswered call (that isn't the cold-flip), default the attempt to
+    // the suggested next level unless the rep picked one explicitly.
+    const dnpAttempt = isDnp && !goingCold
+      ? (Number(newActivity.dnpAttempt) || suggestedDnp)
+      : undefined;
     try {
       await api.createActivity({ ...newActivity, summary, dnpAttempt, leadId: id });
+
+      // DNP follow-up automation: schedule the next-day callback, or - on the
+      // attempt after DNP_MAX - mark the lead Cold and stop chasing it.
+      if (isDnp) {
+        if (goingCold) {
+          await api.updateLead(id, {
+            funnelStage: 'Cold',
+            nextContactDate: null,
+            nextContactNote: `Marked Cold: unreachable after ${DNP_MAX} DNPs + a final attempt`,
+          });
+        } else {
+          const attempt = Number(newActivity.dnpAttempt) || suggestedDnp;
+          await api.updateLead(id, {
+            nextContactDate: tomorrowIST(),
+            nextContactNote: `Auto follow-up: retry after DNP ${attempt}`,
+          });
+        }
+      }
+
       setNewActivity(emptyActivity);
       // Team members return to the Leads tab once the activity is logged;
       // Admins stay on the timeline to keep logging.
@@ -162,9 +213,20 @@ export default function LeadDetail() {
     <div className="page-container">
       <h1>{lead.fields['Full Name']}</h1>
       <span className="badge-stage">{lead.fields['Funnel Stage']}</span>
-      {lead.fields['Next Contact Date'] && (
-        <span className="badge-nextcontact" style={{ marginLeft: '0.5rem' }}>
-          Next contact: {lead.fields['Next Contact Date']}
+      {lead.fields['Next Contact Date'] && (() => {
+        const s = dueStatus(lead);
+        const date = String(lead.fields['Next Contact Date']).slice(0, 10);
+        const label = s === 'overdue' ? `Overdue · ${date}`
+          : s === 'today' ? `Due today · ${date}`
+          : `Next contact: ${date}`;
+        const style = { marginLeft: '0.5rem' };
+        if (s === 'overdue') { style.background = 'var(--pn-danger)'; style.color = '#fff'; }
+        else if (s === 'today') { style.background = 'var(--pn-warning, #b25e00)'; style.color = '#fff'; }
+        return <span className="badge-nextcontact" style={style}>{label}</span>;
+      })()}
+      {lead.fields['Last Activity Date'] && (
+        <span className="muted" style={{ marginLeft: '0.5rem', fontSize: '0.85rem' }}>
+          Last contact: {String(lead.fields['Last Activity Date']).slice(0, 10)}
         </span>
       )}
       {lead.fields['LinkedIn URL'] && (
@@ -374,6 +436,13 @@ export default function LeadDetail() {
                 {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>DNP {n}</option>)}
               </select>
               <p className="muted">Suggested from earlier unanswered calls (resets after a Connected call). You can override it - no waiting period is enforced.</p>
+              {priorDnps >= DNP_MAX ? (
+                <p className="muted" style={{ color: 'var(--pn-danger)' }}>
+                  This lead already has {DNP_MAX} unanswered calls. Logging this final attempt will mark it <strong>Cold</strong> and stop callbacks.
+                </p>
+              ) : (
+                <p className="muted">Logging a DNP automatically sets the next contact date to tomorrow.</p>
+              )}
             </div>
           )}
 

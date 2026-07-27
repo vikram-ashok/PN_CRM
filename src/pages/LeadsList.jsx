@@ -16,12 +16,13 @@ import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import RoleGate from '../components/RoleGate.jsx';
+import { dueStatus } from '../dueLeads.js';
 
 // --- CSV helpers ------------------------------------------------------------
 
 const SAMPLE_HEADERS = [
   'Full Name', 'Email', 'Phone', 'Company', 'Lead Source', 'Funnel Stage',
-  'Owner', 'Sourced By', 'Source / Campaign Detail', 'Notes',
+  'Owner', 'Sourced By', 'Sourced Date', 'Source / Campaign Detail', 'Notes',
 ];
 
 // Map a (lowercased, trimmed) CSV header to our payload field name.
@@ -41,6 +42,9 @@ const HEADER_TO_FIELD = {
   'sourced by': 'sourcedBy',
   'sourcedby': 'sourcedBy',
   'sourced by (email)': 'sourcedBy',
+  'sourced date': 'sourcedDate',
+  'sourceddate': 'sourcedDate',
+  'date sourced': 'sourcedDate',
   'source / campaign detail': 'sourceCampaignDetail',
   'source/campaign detail': 'sourceCampaignDetail',
   'campaign detail': 'sourceCampaignDetail',
@@ -141,6 +145,31 @@ function formatDateAdded(iso) {
   return { when, age };
 }
 
+// Short, date-only formatter for the Last Contact column.
+function formatShortDate(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// Render the Next Contact cell: overdue callbacks show in red with an
+// "Overdue" flag, today's show highlighted, future dates show plainly, and
+// closed/cold leads (dueStatus === null) just show the bare date.
+function NextContactCell({ lead }) {
+  const raw = lead.fields['Next Contact Date'];
+  if (!raw) return <span className="muted">-</span>;
+  const date = String(raw).slice(0, 10);
+  const s = dueStatus(lead);
+  if (s === 'overdue') {
+    return <span style={{ color: 'var(--pn-danger)', fontWeight: 600 }}>Overdue · {date}</span>;
+  }
+  if (s === 'today') {
+    return <span style={{ color: 'var(--pn-warning, #b25e00)', fontWeight: 600 }}>Today · {date}</span>;
+  }
+  return <span>{date}</span>;
+}
+
 // --- Bulk import modal ------------------------------------------------------
 
 function BulkImportModal({ onClose, onDone }) {
@@ -152,8 +181,8 @@ function BulkImportModal({ onClose, onDone }) {
 
   const sample = [
     SAMPLE_HEADERS.join(','),
-    '"Jane Doe","jane@example.com","555-0100","Acme Corp","LinkedIn","New Lead","","","Q3 LinkedIn campaign","Met at webinar"',
-    '"Ravi Kumar","ravi@example.in","555-0111","Globex","Referral","Contacted","","","Partner intro","Wants a demo"',
+    '"Jane Doe","jane@example.com","555-0100","Acme Corp","LinkedIn","New Lead","","","2026-07-01","Q3 LinkedIn campaign","Met at webinar"',
+    '"Ravi Kumar","ravi@example.in","555-0111","Globex","Referral","Contacted","","","2026-07-15","Partner intro","Wants a demo"',
   ].join('\n');
 
   const onFile = (e) => {
@@ -195,6 +224,8 @@ function BulkImportModal({ onClose, onDone }) {
         <p className="muted">
           Upload a CSV with a header row. Only <strong>Full Name</strong> is required; other
           columns are optional. New company names are created automatically.
+          The optional <strong>Sourced Date</strong> column (YYYY-MM-DD) sets the lead's
+          date added &mdash; leave it blank to use today.
         </p>
         <RoleGate allow={['admin', 'superadmin']}>
           <p className="muted">
@@ -338,6 +369,8 @@ export default function LeadsList() {
                 <th>Funnel Stage</th>
                 <th>Lead Owner</th>
                 <th>Sourced By</th>
+                <th>Last Contact</th>
+                <th>Next Contact</th>
                 <th>Date Added</th>
                 <RoleGate allow={['admin', 'superadmin']}><th></th></RoleGate>
               </tr>
@@ -353,6 +386,8 @@ export default function LeadsList() {
                   <td>{lead.fields['Funnel Stage'] || '-'}</td>
                   <td>{ownerName(lead.fields['Owner']) || 'Unassigned'}</td>
                   <td>{ownerName(lead.fields['Sourced By']) || '-'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{formatShortDate(lead.fields['Last Activity Date'])}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}><NextContactCell lead={lead} /></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     {(() => {
                       const { when, age } = formatDateAdded(lead.fields['Created Date']);
@@ -374,7 +409,7 @@ export default function LeadsList() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={10} className="muted" style={{ textAlign: 'center', padding: '1.5rem' }}>
+                <tr><td colSpan={12} className="muted" style={{ textAlign: 'center', padding: '1.5rem' }}>
                   {search ? 'No leads match your search.' : 'No leads yet.'}
                 </td></tr>
               )}

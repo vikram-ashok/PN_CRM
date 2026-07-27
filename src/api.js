@@ -113,6 +113,10 @@ export const FUNNEL_STAGES = [
   'Closed Won',
   'Closed Lost',
   'Nurture',
+  // Terminal-ish state: a lead that went unreachable (5 DNPs + a final
+  // attempt). Set automatically by the DNP flow; can be revived by moving it
+  // back to an active stage. Kept last so it sits after the closed stages.
+  'Cold',
 ];
 
 export const LEAD_SOURCES = [

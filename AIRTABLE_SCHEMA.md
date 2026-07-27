@@ -64,7 +64,7 @@ in `netlify/functions/` to match.
 | Date | Date/time | |
 | Logged By | Single line text | stamped from the caller's Identity email server-side |
 | Call Outcome | Single select | Connected, DNP — set only on `Call` activities (drives calls-connected / DNP metrics) |
-| DNP Attempt | Number (1–5) | on a `Call` with Outcome = DNP: which unanswered attempt this was. Auto-suggested (count of prior DNP calls since last Connected + 1, capped 5); rep can override; no waiting period enforced |
+| DNP Attempt | Number (1–5) | on a `Call` with Outcome = DNP: which unanswered attempt this was. In the manual log form it's auto-suggested (prior DNP calls since last Connected + 1, capped 5). In **Import Calls** it's derived from how many times the number appears in the dialer CSV (2 calls → DNP 2, etc.); a number dialed >5 times without connecting marks the lead **Cold** instead |
 | Is Follow-Up | Checkbox | set on `Call` or `Email` activities that are follow-ups (drives follow-up call/email metrics) |
 | Email Event | Single select | Sent, Opened, Replied — set on `Email` activities. Opens/replies are logged as **separate** activity records (not edits), since Team users can't edit records |
 | LinkedIn Event | Single select | Request Sent, Accepted, Message Sent, Read, Replied — set on `LinkedIn` activities. Each step is its own entry (create-only), same pattern as Email |

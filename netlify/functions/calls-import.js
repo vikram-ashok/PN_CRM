@@ -1,7 +1,13 @@
 // netlify/functions/calls-import.js
 //
 // POST /.netlify/functions/calls-import
-// Body: { calls: [ { leadId, outcome, duration, date, summary, loggedBy }, ... ] }
+// Body: { calls: [ { leadId, outcome, duration, date, summary, loggedBy,
+//                    dnpAttempt, markCold }, ... ] }
+//
+// dnpAttempt (1-5): the DNP level derived in the browser from how many times
+//   the number was dialed in the report (2 calls => DNP 2, etc.).
+// markCold: when a number was dialed past the DNP ladder (>5 unanswered), the
+//   lead is set to Funnel Stage "Cold" and its Next Contact Date is cleared.
 //
 // Admin / Super Admin ONLY. Bulk-creates "Call" Activity records from a
 // parsed dialer report (see src/pages/ImportCalls.jsx). Each entry has already
@@ -53,6 +59,8 @@ exports.handler = async (event, context) => {
   const errors = [];
   // Track the latest call date per lead so we can update Last Activity Date once.
   const latestByLead = new Map();
+  // Leads to mark Cold (dialed past the DNP ladder), applied after logging.
+  const coldLeads = new Set();
 
   for (let i = 0; i < calls.length; i += 1) {
     const c = calls[i] || {};
@@ -79,10 +87,18 @@ exports.handler = async (event, context) => {
     if (outcome === 'Connected' && Number.isFinite(duration) && duration > 0) {
       fields['Call Duration (s)'] = Math.round(duration);
     }
+    // DNP level derived from the number of calls in the report (1-5).
+    if (outcome === 'DNP') {
+      const n = Number(c.dnpAttempt);
+      if (Number.isFinite(n) && n >= 1 && n <= 5) fields['DNP Attempt'] = Math.round(n);
+    }
 
     try {
       await createRecord(TABLES.ACTIVITIES, fields, { typecast: true });
       created += 1;
+
+      // Dialed past the DNP ladder -> flag the lead to be marked Cold below.
+      if (outcome === 'DNP' && c.markCold === true) coldLeads.add(leadId);
 
       const prev = latestByLead.get(leadId);
       if (!prev || new Date(date) > new Date(prev)) latestByLead.set(leadId, date);
@@ -92,10 +108,18 @@ exports.handler = async (event, context) => {
   }
 
   // Update each affected lead's Last Activity Date to its most recent call.
+  // Leads dialed past the DNP ladder are also set to Cold (and their pending
+  // callback cleared) in the same write.
   const leadUpdateErrors = [];
   for (const [leadId, date] of latestByLead.entries()) {
+    const fields = { 'Last Activity Date': date };
+    if (coldLeads.has(leadId)) {
+      fields['Funnel Stage'] = 'Cold';
+      fields['Next Contact Date'] = null;
+    }
     try {
-      await updateRecord(TABLES.LEADS, leadId, { 'Last Activity Date': date });
+      // typecast so the "Cold" Funnel Stage option registers on first use.
+      await updateRecord(TABLES.LEADS, leadId, fields, { typecast: true });
     } catch (err) {
       leadUpdateErrors.push({ leadId, error: err.message });
     }
@@ -108,6 +132,7 @@ exports.handler = async (event, context) => {
       failed: errors.length,
       total: calls.length,
       leadsUpdated: latestByLead.size - leadUpdateErrors.length,
+      coldMarked: coldLeads.size,
       errors: errors.slice(0, 50),
       leadUpdateErrors: leadUpdateErrors.slice(0, 50),
     }),

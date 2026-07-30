@@ -8,6 +8,11 @@
 //   the number was dialed in the report (2 calls => DNP 2, etc.).
 // markCold: when a number was dialed past the DNP ladder (>5 unanswered), the
 //   lead is set to Funnel Stage "Cold" and its Next Contact Date is cleared.
+// currentStage: the matched lead's current Funnel Stage (from the client), used
+//   so a Connected call advances a "New Lead" to "Contacted" without regressing
+//   a lead that's already further along.
+// A Connected call → lead advanced to "Contacted" (from New Lead). A DNP call →
+//   Next Contact Date set to the call date + 1 day (DNP 1-3) or +3 days (4-5).
 //
 // Admin / Super Admin ONLY. Bulk-creates "Call" Activity records from a
 // parsed dialer report (see src/pages/ImportCalls.jsx). Each entry has already
@@ -25,6 +30,20 @@ const { requireRole, getUser } = require('./utils/auth');
 const { TABLES, createRecord, updateRecord } = require('./utils/airtable');
 
 const MAX_CALLS = 2000;
+
+// DNP callback cadence: attempts 1-3 → next day, 4-5 → +3 days (measured from
+// the call date). Mirrors the manual Log-Activity flow in LeadDetail.jsx.
+function dnpIntervalDays(attempt) {
+  const n = Number(attempt) || 1;
+  return n <= 3 ? 1 : 3;
+}
+function addDays(isoDate, days) {
+  const base = String(isoDate || '').slice(0, 10);
+  const d = new Date(`${base}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') {
@@ -61,6 +80,11 @@ exports.handler = async (event, context) => {
   const latestByLead = new Map();
   // Leads to mark Cold (dialed past the DNP ladder), applied after logging.
   const coldLeads = new Set();
+  // Leads a connected call should advance New Lead -> Contacted (only when the
+  // client tells us the lead is currently New Lead, so we never regress one).
+  const contactLeads = new Set();
+  // Leads that need a DNP callback date: leadId -> { date, attempt }.
+  const dnpNext = new Map();
 
   for (let i = 0; i < calls.length; i += 1) {
     const c = calls[i] || {};
@@ -99,6 +123,13 @@ exports.handler = async (event, context) => {
 
       // Dialed past the DNP ladder -> flag the lead to be marked Cold below.
       if (outcome === 'DNP' && c.markCold === true) coldLeads.add(leadId);
+      // A connected call means we reached them -> advance a New Lead to Contacted.
+      if (outcome === 'Connected' && c.currentStage === 'New Lead') contactLeads.add(leadId);
+      // A DNP (not past the ladder) schedules the next-day / +3-day callback.
+      if (outcome === 'DNP' && c.markCold !== true) {
+        const nc = addDays(date, dnpIntervalDays(c.dnpAttempt));
+        if (nc) dnpNext.set(leadId, { date: nc, attempt: Number(c.dnpAttempt) || 1 });
+      }
 
       const prev = latestByLead.get(leadId);
       if (!prev || new Date(date) > new Date(prev)) latestByLead.set(leadId, date);
@@ -116,6 +147,13 @@ exports.handler = async (event, context) => {
     if (coldLeads.has(leadId)) {
       fields['Funnel Stage'] = 'Cold';
       fields['Next Contact Date'] = null;
+    } else {
+      if (contactLeads.has(leadId)) fields['Funnel Stage'] = 'Contacted';
+      const nx = dnpNext.get(leadId);
+      if (nx) {
+        fields['Next Contact Date'] = nx.date;
+        fields['Next Contact Note'] = `Auto follow-up: retry after DNP ${nx.attempt}`;
+      }
     }
     try {
       // typecast so the "Cold" Funnel Stage option registers on first use.

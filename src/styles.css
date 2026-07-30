@@ -332,7 +332,7 @@ table.data-table th { color: var(--pn-text-muted); font-weight: 600; font-size: 
   min-width: 200px;
 }
 .leads-table td, .leads-table th { text-align: left; }
-.leads-table td.perf-sticky a { font-weight: 600; }
+.leads-table td:first-child a { font-weight: 600; }
 
 .modal-overlay {
   position: fixed; inset: 0;

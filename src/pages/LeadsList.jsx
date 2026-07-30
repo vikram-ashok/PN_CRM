@@ -391,7 +391,7 @@ export default function LeadsList() {
           <table className="perf-table leads-table">
             <thead>
               <tr>
-                <th className="perf-sticky">Lead Name</th>
+                <th>Lead Name</th>
                 <th>Company</th>
                 <th>Email</th>
                 <th>Phone</th>
@@ -408,7 +408,7 @@ export default function LeadsList() {
             <tbody>
               {filtered.map((lead) => (
                 <tr key={lead.id}>
-                  <td className="perf-sticky"><Link to={`/leads/${lead.id}`}>{lead.fields['Full Name']}</Link></td>
+                  <td><Link to={`/leads/${lead.id}`}>{lead.fields['Full Name']}</Link></td>
                   <td>{companyName(lead) || '-'}</td>
                   <td>{lead.fields['Email'] || '-'}</td>
                   <td>{lead.fields['Phone'] || '-'}</td>

@@ -74,7 +74,7 @@ export default function ImportCalls() {
   const [result, setResult] = useState(null);
 
   const leadRows = useCallback(
-    () => leads.map((l) => ({ id: l.id, phone: l.fields['Phone'] || '', name: l.fields['Full Name'] || '(no name)', owner: l.fields['Owner'] || '' })),
+    () => leads.map((l) => ({ id: l.id, phone: l.fields['Phone'] || '', name: l.fields['Full Name'] || '(no name)', owner: l.fields['Owner'] || '', stage: l.fields['Funnel Stage'] || '' })),
     [leads]
   );
 
@@ -150,6 +150,7 @@ export default function ImportCalls() {
           loggedBy: lead.owner || '',
           dnpAttempt: group.dnpAttempt,
           markCold: group.markCold,
+          currentStage: lead.stage || '',
         });
       });
 
@@ -167,6 +168,7 @@ export default function ImportCalls() {
             loggedBy: (lead && lead.owner) || '',
             dnpAttempt: g.dnpAttempt,
             markCold: g.markCold,
+            currentStage: (lead && lead.stage) || '',
           });
         } else if (r.action === 'new') {
           const name = (r.name || '').trim();
@@ -190,6 +192,7 @@ export default function ImportCalls() {
             loggedBy: owner || '',
             dnpAttempt: g.dnpAttempt,
             markCold: g.markCold,
+            currentStage: 'Contacted', // just created at this stage
           });
         }
         // action === 'skip' -> do nothing

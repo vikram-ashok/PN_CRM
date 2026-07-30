@@ -18,11 +18,16 @@ import { useAuth } from '../AuthContext.jsx';
 import RoleGate from '../components/RoleGate.jsx';
 import { dueStatus } from '../dueLeads.js';
 
-// Tomorrow's date (YYYY-MM-DD) in the team's timezone (IST) - used to
-// auto-schedule the next-day callback after an unanswered (DNP) call.
-function tomorrowIST() {
-  const t = new Date(Date.now() + 24 * 60 * 60 * 1000);
+// Date (YYYY-MM-DD, IST) `days` from today - for auto-scheduling DNP callbacks.
+function todayPlusIST(days) {
+  const t = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(t);
+}
+// DNP callback cadence: attempts 1-3 → next day, 4-5 → +3 days. Keep in sync
+// with dnpIntervalDays() in netlify/functions/calls-import.js.
+function dnpIntervalDays(attempt) {
+  const n = Number(attempt) || 1;
+  return n <= 3 ? 1 : 3;
 }
 
 // How many DNPs cap before the lead is auto-marked Cold. After this many
@@ -177,8 +182,9 @@ export default function LeadDetail() {
     try {
       await api.createActivity({ ...newActivity, summary, dnpAttempt, leadId: id });
 
-      // DNP follow-up automation: schedule the next-day callback, or - on the
-      // attempt after DNP_MAX - mark the lead Cold and stop chasing it.
+      // DNP follow-up automation: schedule the callback (next day for DNP 1-3,
+      // +3 days for 4-5), or - on the attempt after DNP_MAX - mark the lead Cold
+      // and stop chasing it.
       if (isDnp) {
         if (goingCold) {
           await api.updateLead(id, {
@@ -189,10 +195,14 @@ export default function LeadDetail() {
         } else {
           const attempt = Number(newActivity.dnpAttempt) || suggestedDnp;
           await api.updateLead(id, {
-            nextContactDate: tomorrowIST(),
+            nextContactDate: todayPlusIST(dnpIntervalDays(attempt)),
             nextContactNote: `Auto follow-up: retry after DNP ${attempt}`,
           });
         }
+      } else if (newActivity.activityType === 'Call' && newActivity.callOutcome === 'Connected'
+                 && lead.fields['Funnel Stage'] === 'New Lead') {
+        // Reached them on a first-touch lead -> advance New Lead to Contacted.
+        await api.updateLead(id, { funnelStage: 'Contacted' });
       }
 
       setNewActivity(emptyActivity);
@@ -477,7 +487,7 @@ export default function LeadDetail() {
                   This lead already has {DNP_MAX} unanswered calls. Logging this final attempt will mark it <strong>Cold</strong> and stop callbacks.
                 </p>
               ) : (
-                <p className="muted">Logging a DNP automatically sets the next contact date to tomorrow.</p>
+                <p className="muted">Logging a DNP automatically sets the next contact date (next day for DNP 1–3, +3 days for 4–5).</p>
               )}
             </div>
           )}

@@ -56,15 +56,13 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // A batch view needs every matching lead, so page through all of them;
-    // the general list keeps its single-page behaviour.
-    if (params.batchId) {
-      const { pageSize, ...rest } = query;
-      const records = await listAllRecords(TABLES.LEADS, rest);
-      return { statusCode: 200, body: JSON.stringify({ records }) };
-    }
-    const data = await listRecords(TABLES.LEADS, query);
-    return { statusCode: 200, body: JSON.stringify(data) };
+    // Return EVERY matching lead, paging through Airtable's 100-record pages.
+    // (Previously this returned only the first 100, which silently hid leads
+    // from the Leads table, Today, Lead Detail, and — most visibly — the
+    // Import Calls phone matcher once the base grew past 100 records.)
+    const { pageSize, ...rest } = query;
+    const records = await listAllRecords(TABLES.LEADS, rest);
+    return { statusCode: 200, body: JSON.stringify({ records }) };
   } catch (err) {
     return { statusCode: err.statusCode || 500, body: JSON.stringify({ error: err.message }) };
   }

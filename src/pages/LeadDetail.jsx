@@ -96,6 +96,12 @@ export default function LeadDetail() {
           nextContactDate: found.fields['Next Contact Date'] || '',
           nextContactNote: found.fields['Next Contact Note'] || '',
           linkedinUrl: found.fields['LinkedIn URL'] || '',
+          designation: found.fields['Designation'] || '',
+          website: found.fields['Website'] || '',
+          location: found.fields['Location'] || '',
+          revenue: found.fields['Revenue'] || '',
+          teamSize: found.fields['Team Size'] || '',
+          tier: found.fields['Tier'] || '',
         });
       }
     }).catch((err) => setError(err.message));
@@ -278,7 +284,13 @@ export default function LeadDetail() {
             <p><strong>Company:</strong> {companyName || '-'}</p>
             <p><strong>Lead Source:</strong> {lead.fields['Lead Source'] || '-'}</p>
             <p><strong>Owner:</strong> {lead.fields['Owner'] || '-'}</p>
-            <p style={{ margin: 0 }}><strong>Sourced By:</strong> {lead.fields['Sourced By'] || '-'}</p>
+            <p><strong>Sourced By:</strong> {lead.fields['Sourced By'] || '-'}</p>
+            {lead.fields['Designation'] && <p><strong>Designation:</strong> {lead.fields['Designation']}</p>}
+            {lead.fields['Website'] && <p><strong>Website:</strong> <a href={lead.fields['Website']} target="_blank" rel="noreferrer">{lead.fields['Website']}</a></p>}
+            {lead.fields['Location'] && <p><strong>Location:</strong> {lead.fields['Location']}</p>}
+            {lead.fields['Revenue'] && <p><strong>Revenue:</strong> {lead.fields['Revenue']}</p>}
+            {lead.fields['Team Size'] && <p><strong>Team Size:</strong> {lead.fields['Team Size']}</p>}
+            {lead.fields['Tier'] && <p style={{ margin: 0 }}><strong>Tier:</strong> {lead.fields['Tier']}</p>}
           </div>
           <button type="submit">Save Changes</button>
         </form>
@@ -350,6 +362,30 @@ export default function LeadDetail() {
           <div className="form-field">
             <label>LinkedIn URL</label>
             <input value={editForm.linkedinUrl} placeholder="https://www.linkedin.com/in/..." onChange={(e) => setEditForm({ ...editForm, linkedinUrl: e.target.value })} />
+          </div>
+          <div className="form-field">
+            <label>Designation</label>
+            <input value={editForm.designation} onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })} />
+          </div>
+          <div className="form-field">
+            <label>Website</label>
+            <input value={editForm.website} placeholder="https://..." onChange={(e) => setEditForm({ ...editForm, website: e.target.value })} />
+          </div>
+          <div className="form-field">
+            <label>Location</label>
+            <input value={editForm.location} onChange={(e) => setEditForm({ ...editForm, location: e.target.value })} />
+          </div>
+          <div className="form-field">
+            <label>Revenue</label>
+            <input value={editForm.revenue} onChange={(e) => setEditForm({ ...editForm, revenue: e.target.value })} />
+          </div>
+          <div className="form-field">
+            <label>Team Size</label>
+            <input value={editForm.teamSize} onChange={(e) => setEditForm({ ...editForm, teamSize: e.target.value })} />
+          </div>
+          <div className="form-field">
+            <label>Tier</label>
+            <input value={editForm.tier} onChange={(e) => setEditForm({ ...editForm, tier: e.target.value })} />
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button type="submit">Save Changes</button>

@@ -40,6 +40,12 @@ in `netlify/functions/` to match.
 | Next Contact Date | Date (YYYY-MM-DD) | next day the owner should contact this lead (e.g. a requested callback); drives the Today queue. Auto-set to **tomorrow** each time a DNP call is logged (see DNP flow below). Shown as "Next Contact" on the Leads table (Overdue in red if past, highlighted if today). |
 | Next Contact Note | Long text | short note on the next contact, e.g. "call back re pricing" |
 | LinkedIn URL | URL | the lead's LinkedIn profile, for outreach tracking |
+| Designation | Single line text | the contact's job title/role (e.g. Founder, Broker-Owner) |
+| Website | URL | the lead/firm's website |
+| Location | Single line text | firm location / region (e.g. California, TX) |
+| Revenue | Single line text | revenue band as recorded in the source sheet (e.g. "$5M-$15M") |
+| Team Size | Single line text | team size as recorded (e.g. "20-40", "48") |
+| Tier | Single line text | prospect tier/priority (e.g. Tier 1, Tier 2) |
 | Deals | Link to Deals | auto-populated from Deals.Linked Lead |
 | Activities | Link to Activities | auto-populated from Activities.Linked Lead |
 

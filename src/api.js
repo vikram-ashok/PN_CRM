@@ -66,8 +66,10 @@ export const api = {
   // Team members (email/name/role) - all roles; for owner pickers & name display
   listMembers: () => request('members-list'),
 
-  // Bulk import leads from parsed CSV rows (fileName is recorded on the batch)
-  importLeads: (rows, fileName) => request('leads-import', { method: 'POST', body: { rows, fileName } }),
+  // Bulk import leads from parsed CSV rows (fileName is recorded on the batch).
+  // A shared batchId can be passed so multiple chunked requests roll up into
+  // one Import Batch (see the chunked importer in LeadsList.jsx).
+  importLeads: (rows, fileName, batchId) => request('leads-import', { method: 'POST', body: { rows, fileName, batchId } }),
 
   // Import batches (Admin/Super Admin): list imports, list one batch's leads,
   // and bulk-delete selected leads from a batch.

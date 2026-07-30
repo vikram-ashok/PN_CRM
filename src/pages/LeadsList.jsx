@@ -45,6 +45,16 @@ const HEADER_TO_FIELD = {
   'sourced date': 'sourcedDate',
   'sourceddate': 'sourcedDate',
   'date sourced': 'sourcedDate',
+  'designation': 'designation',
+  'title': 'designation',
+  'website': 'website',
+  'location': 'location',
+  'revenue': 'revenue',
+  'team size': 'teamSize',
+  'teamsize': 'teamSize',
+  'tier': 'tier',
+  'linkedin': 'linkedinUrl',
+  'linkedin url': 'linkedinUrl',
   'source / campaign detail': 'sourceCampaignDetail',
   'source/campaign detail': 'sourceCampaignDetail',
   'campaign detail': 'sourceCampaignDetail',
@@ -177,6 +187,7 @@ function BulkImportModal({ onClose, onDone }) {
   const [fileName, setFileName] = useState('');
   const [parseError, setParseError] = useState('');
   const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState(null);
   const [result, setResult] = useState(null);
 
   const sample = [
@@ -203,15 +214,32 @@ function BulkImportModal({ onClose, onDone }) {
     reader.readAsText(file);
   };
 
+  // Import in small chunks so no single request approaches the serverless
+  // function timeout (a big one-shot import 504s). All chunks share one
+  // batchId so they roll up into a single, undo-able Import Batch.
   const runImport = async () => {
     if (!rows) return;
     setImporting(true);
+    setParseError('');
+    const CHUNK = 10;
+    const batchId = `imp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    let created = 0;
+    let failed = 0;
+    const errors = [];
     try {
-      const res = await api.importLeads(rows, fileName);
-      setResult(res);
-      if (res.created > 0) onDone();
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        setProgress({ done: i, total: rows.length });
+        // eslint-disable-next-line no-await-in-loop
+        const res = await api.importLeads(rows.slice(i, i + CHUNK), fileName, batchId);
+        created += res.created || 0;
+        failed += res.failed || 0;
+        (res.errors || []).forEach((e) => errors.push({ row: i + (e.row || 0), error: e.error }));
+      }
+      setProgress({ done: rows.length, total: rows.length });
+      setResult({ created, failed, total: rows.length, errors: errors.slice(0, 50) });
+      if (created > 0) onDone();
     } catch (err) {
-      setParseError(err.message);
+      setParseError(`Imported ${created} of ${rows.length} before an error: ${err.message}. You can re-run — but delete this partial batch from Import Batches first to avoid duplicates.`);
     } finally {
       setImporting(false);
     }
@@ -262,7 +290,9 @@ function BulkImportModal({ onClose, onDone }) {
 
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
           <button onClick={runImport} disabled={!rows || importing}>
-            {importing ? 'Importing...' : `Import ${rows ? rows.length : ''} leads`}
+            {importing
+              ? (progress ? `Importing ${progress.done}/${progress.total}...` : 'Importing...')
+              : `Import ${rows ? rows.length : ''} leads`}
           </button>
           <button className="secondary" onClick={onClose}>{result ? 'Close' : 'Cancel'}</button>
         </div>

@@ -23,7 +23,9 @@
 // also stamped with "Sourced By" = the importer's email.
 
 const { requireRole, getUser, getUserRole } = require('./utils/auth');
-const { TABLES, createRecord, loadCompanyMap, findOrCreateCompany } = require('./utils/airtable');
+const {
+  TABLES, createRecord, updateRecord, listRecords, loadCompanyMap, findOrCreateCompany,
+} = require('./utils/airtable');
 
 const MAX_ROWS = 1000;
 
@@ -84,8 +86,11 @@ exports.handler = async (event, context) => {
   }
 
   // One id for this whole import; stamped on every lead created below so the
-  // batch can be reviewed / bulk-deleted later. Compact, sortable, unique.
-  const batchId = `imp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  // batch can be reviewed / bulk-deleted later. The client sends a shared
+  // batchId across all chunks of a large import so they roll up into ONE
+  // Import Batches record; if absent (single-shot import) we generate one.
+  const batchId = (payload.batchId && String(payload.batchId).trim())
+    || `imp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
   let created = 0;
   const errors = [];
@@ -123,6 +128,13 @@ exports.handler = async (event, context) => {
         'Owner': ownerEmail,
         'Sourced By': sourcedByEmail,
         'Import Batch ID': batchId,
+        'Designation': (r.designation || '').trim() || undefined,
+        'Website': (r.website || '').trim() || undefined,
+        'Location': (r.location || '').trim() || undefined,
+        'Revenue': (r.revenue || '').trim() || undefined,
+        'Team Size': (r.teamSize || '').trim() || undefined,
+        'Tier': (r.tier || '').trim() || undefined,
+        'LinkedIn URL': (r.linkedinUrl || '').trim() || undefined,
         'Notes': (r.notes || '').trim() || undefined,
         // The CSV can carry the date the lead was actually sourced; that
         // becomes its Created Date (so "Date Added" and the Leads-sourced
@@ -143,16 +155,30 @@ exports.handler = async (event, context) => {
   // Only bother if at least one lead was created (an all-failed import leaves
   // no leads to group, so there's nothing to review/delete). A failure to
   // write this metadata must not fail the import - the leads are already in.
+  // Upsert the batch metadata: one Import Batches record per batchId. On the
+  // first chunk it's created; later chunks increment its Lead Count. Best-
+  // effort — the leads are already saved, so this never fails the request.
   let batchRecorded = false;
   if (created > 0) {
     try {
-      await createRecord(TABLES.IMPORT_BATCHES, {
-        'Batch ID': batchId,
-        'Imported By': callerEmail,
-        'Imported At': new Date().toISOString(),
-        'Lead Count': created,
-        'File Name': fileName,
+      const safe = batchId.replace(/"/g, '\\"');
+      const existing = await listRecords(TABLES.IMPORT_BATCHES, {
+        filterByFormula: `{Batch ID} = "${safe}"`,
+        maxRecords: 1,
       });
+      const rec = (existing.records || [])[0];
+      if (rec) {
+        const prev = Number((rec.fields && rec.fields['Lead Count']) || 0);
+        await updateRecord(TABLES.IMPORT_BATCHES, rec.id, { 'Lead Count': prev + created });
+      } else {
+        await createRecord(TABLES.IMPORT_BATCHES, {
+          'Batch ID': batchId,
+          'Imported By': callerEmail,
+          'Imported At': new Date().toISOString(),
+          'Lead Count': created,
+          'File Name': fileName,
+        });
+      }
       batchRecorded = true;
     } catch (err) {
       errors.push({ row: 0, error: `Leads imported, but the batch record could not be saved: ${err.message}` });

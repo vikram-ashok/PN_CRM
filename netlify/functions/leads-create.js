@@ -38,6 +38,13 @@ exports.handler = async (event, context) => {
     funnelStage,
     owner,
     notes,
+    designation,
+    website,
+    location,
+    revenue,
+    teamSize,
+    tier,
+    linkedinUrl,
   } = payload;
 
   if (!fullName) {
@@ -77,6 +84,13 @@ exports.handler = async (event, context) => {
     // the lead in.
     'Sourced By': callerEmail,
     'Notes': notes || undefined,
+    'Designation': designation || undefined,
+    'Website': website || undefined,
+    'Location': location || undefined,
+    'Revenue': revenue || undefined,
+    'Team Size': teamSize || undefined,
+    'Tier': tier || undefined,
+    'LinkedIn URL': linkedinUrl || undefined,
     'Created Date': new Date().toISOString(),
   };
 

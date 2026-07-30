@@ -99,6 +99,12 @@ exports.handler = async (event, context) => {
     nextContactDate: 'Next Contact Date',
     nextContactNote: 'Next Contact Note',
     linkedinUrl: 'LinkedIn URL',
+    designation: 'Designation',
+    website: 'Website',
+    location: 'Location',
+    revenue: 'Revenue',
+    teamSize: 'Team Size',
+    tier: 'Tier',
     companyId: 'Company',
   };
 

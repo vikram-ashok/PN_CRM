@@ -22,6 +22,13 @@ const emptyForm = {
   funnelStage: FUNNEL_STAGES[0],
   owner: '',
   notes: '',
+  designation: '',
+  website: '',
+  location: '',
+  revenue: '',
+  teamSize: '',
+  tier: '',
+  linkedinUrl: '',
 };
 
 export default function AddLead() {
@@ -128,6 +135,34 @@ export default function AddLead() {
             <p className="muted">You'll be set as the owner of this lead.</p>
           </div>
         )}
+        <div className="form-field">
+          <label>Designation</label>
+          <input value={form.designation} onChange={update('designation')} />
+        </div>
+        <div className="form-field">
+          <label>Website</label>
+          <input value={form.website} placeholder="https://..." onChange={update('website')} />
+        </div>
+        <div className="form-field">
+          <label>Location</label>
+          <input value={form.location} onChange={update('location')} />
+        </div>
+        <div className="form-field">
+          <label>Revenue</label>
+          <input value={form.revenue} onChange={update('revenue')} />
+        </div>
+        <div className="form-field">
+          <label>Team Size</label>
+          <input value={form.teamSize} onChange={update('teamSize')} />
+        </div>
+        <div className="form-field">
+          <label>Tier</label>
+          <input value={form.tier} onChange={update('tier')} />
+        </div>
+        <div className="form-field">
+          <label>LinkedIn URL</label>
+          <input value={form.linkedinUrl} placeholder="https://www.linkedin.com/in/..." onChange={update('linkedinUrl')} />
+        </div>
         <div className="form-field">
           <label>Notes</label>
           <textarea rows={4} value={form.notes} onChange={update('notes')} />
